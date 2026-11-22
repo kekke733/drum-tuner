@@ -13,51 +13,92 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Drum Tuner">
 <style>
-:root{--hi1:#f59a9a;--hi2:#ff5c5c;--lo1:#8fc2ff;--lo2:#4d8dff;--bg:#14161a;--panel:#1d2026;--line:#2c3038;--text:#e8eaed;--sub:#9aa0a8;--accent:#4fb3ff;--ok:#3ecf7a;--warn:#f2c14e;--bad:#ef5b5b}
+:root{--hi1:#f59a9a;--hi2:#ff5c5c;--lo1:#8fc2ff;--lo2:#4d8dff;--bg:#14161a;--panel:#1d2026;--ctl:#262a31;--line:#2c3038;--text:#e8eaed;--sub:#9aa0a8;--accent:#4fb3ff;--ok:#3ecf7a;--warn:#f2c14e;--bad:#ef5b5b;color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif}
-header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-header h1{font-size:18px;margin:0;flex:1}
-main{max-width:1000px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns:1fr 1fr}
-@media(max-width:760px){main{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
-.card h2{font-size:14px;color:var(--sub);margin:0 0 12px;font-weight:600}
-button,select,input{font:inherit;color:var(--text);background:#262a31;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
-button{cursor:pointer}button:hover{border-color:var(--accent)}
-button.primary{background:var(--accent);color:#06121d;border:none;font-weight:700}
-button.rec{background:var(--bad);color:#fff;border:none}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-label{font-size:13px;color:var(--sub)}
-input[type=number]{width:90px}
-.big{font-size:56px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
-.note{font-size:22px;color:var(--sub);margin-top:6px}
-.meter{position:relative;height:26px;background:#262a31;border-radius:13px;margin-top:14px;overflow:hidden}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;-webkit-tap-highlight-color:transparent}
+button,select,input{font:inherit;color:var(--text);background:var(--ctl);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+button{cursor:pointer}
+button:disabled{opacity:.35;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* 上のバー */
+.top{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);
+  padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 10px max(12px,env(safe-area-inset-left))}
+#drum{flex:1;min-width:0;font-size:17px;font-weight:700;background:transparent;border:none;padding:6px 2px}
+.seg{display:flex;background:var(--ctl);border-radius:12px;padding:3px;flex-shrink:0}
+.seg button{border:none;background:transparent;padding:6px 11px;border-radius:9px;font-size:13px;color:var(--sub)}
+.seg button.on{background:var(--accent);color:#06121d;font-weight:700}
+.icon{width:38px;height:38px;padding:0;display:grid;place-items:center;font-size:17px;flex-shrink:0}
+/* メイン */
+.app{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px;
+  padding:14px max(16px,env(safe-area-inset-right)) calc(100px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.result{text-align:center}
+.big{font-size:clamp(38px,12vw,60px);font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.big small{font-size:20px;color:var(--sub);font-weight:400;margin-left:4px}
+.note{font-size:clamp(19px,6vw,24px);font-weight:600;color:#c3c8cf;margin-top:6px;min-height:1.3em;white-space:nowrap}
+.meter{position:relative;height:22px;background:var(--ctl);border-radius:11px;margin-top:12px;overflow:hidden}
 .meter .center{position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--sub)}
 .meter .needle{position:absolute;top:3px;bottom:3px;width:10px;margin-left:-5px;border-radius:5px;background:var(--accent);left:50%;transition:left .15s}
 .hint{font-size:13px;color:var(--sub);margin-top:8px;min-height:1.2em}
-canvas{width:100%;height:160px;display:block;background:#15171b;border-radius:8px}
-#level{height:6px;background:#262a31;border-radius:3px;overflow:hidden;margin-top:8px}
+.target-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.chip{border-radius:999px;padding:9px 16px;font-size:14px}
+#targetChip{border-color:var(--accent)}
+.lugs-area{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:12px 12px 14px}
+#lugSvg{width:100%;max-width:320px;display:block;margin:0 auto}
+#lugHint{text-align:center;font-size:14px;color:var(--text);margin-top:6px;line-height:1.5}
+.lug-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
+.lug-tools #lugRef{flex:1;text-align:center;font-size:12px;margin:0;min-height:0}
+.mini{font-size:13px;color:var(--sub);display:flex;align-items:center;gap:6px}
+.mini select{padding:6px 8px}
+.mini-btn{padding:6px 14px;font-size:13px}
+.result-top{display:flex;align-items:center;gap:12px}
+.readout{flex:1;min-width:0;text-align:left}
+.pickup{flex:0 0 164px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 10px;display:flex;flex-direction:column;gap:8px;text-align:left}
+.pk label,.pk-label{display:block;font-size:12px;color:var(--sub);margin-bottom:4px}
+.pk input[type=range]{width:100%;padding:0;margin:0;accent-color:var(--accent)}
+.pk .range-pair{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:4px;color:var(--sub);font-size:12px}
+.pk input[type=number]{width:100%;min-width:0;padding:5px 4px;font-size:14px;text-align:center}
+@media (max-width:340px){.result-top{flex-direction:column;align-items:stretch}.pickup{flex:auto}}
+#level{height:4px;background:var(--ctl);border-radius:2px;overflow:hidden;margin-top:6px}
 #level div{height:100%;width:0;background:var(--ok)}
 svg text{fill:var(--text);font-size:11px;text-anchor:middle;dominant-baseline:middle}
 .lug{cursor:pointer}
-table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
-td,th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right}
-th{color:var(--sub);font-weight:500}
+/* 下のバー */
+.bottombar{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--bg);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;
+  padding:10px max(16px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.bb{display:flex;flex-direction:column;align-items:center;gap:2px;background:transparent;border:none;font-size:12px;color:var(--sub);min-width:68px;padding:4px}
+.bb .ic{font-size:22px;line-height:1;color:var(--text)}
+#micBtn{border-radius:999px;padding:13px 24px;font-size:16px;font-weight:700;background:var(--accent);color:#06121d;border:none;min-width:150px}
+#micBtn.rec{background:var(--bad);color:#fff}
+/* シート・ダイアログ */
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);padding:0;overflow:auto}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog.sheet{margin:auto auto 0;width:min(560px,100vw);max-width:100vw;max-height:88vh;border-radius:18px 18px 0 0;border-bottom:none}
+#help{border-radius:14px;width:min(640px,calc(100vw - 24px));max-height:85vh}
+.sheet-head,.help-head{position:sticky;top:0;z-index:1;background:var(--panel);display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.sheet-head h2,.help-head h2{margin:0;font-size:17px;flex:1}
+.sheet-body{padding:4px 16px calc(24px + env(safe-area-inset-bottom))}
+.group{font-size:12px;color:var(--sub);margin:20px 0 2px;letter-spacing:.05em}
+.field{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);min-height:52px}
+.field>label,.field>span{font-size:15px;color:var(--text)}
+.field small{display:block;color:var(--sub);font-size:12px;margin-top:2px}
+.field input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent)}
+.field input[type=range]{width:150px;accent-color:var(--accent)}
+.field input[type=number]{width:80px}
+.range-pair{display:flex;align-items:center;gap:6px;color:var(--sub)}
+.wide{width:100%;margin-top:12px;padding:12px}
+.danger{color:var(--bad);border-color:#4a2a2c}
+.qbtn{width:30px;height:30px;padding:0;border-radius:50%;font-size:13px;font-weight:700;color:var(--sub)}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;margin-top:8px}
+td,th{padding:6px;border-bottom:1px solid var(--line);text-align:right}
+th{color:var(--sub);font-weight:500;font-size:12px}
 td:first-child,th:first-child{text-align:left}
 tr.center-row td{border-top:2px solid var(--line);font-weight:600}
-.interval{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#181a1f}
+.interval{margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#181a1f}
 .iv-title{font-size:13px;color:var(--sub);margin-bottom:6px}
 .iv-row{display:flex;justify-content:space-between;font-size:14px;font-variant-numeric:tabular-nums;padding:2px 0}
 .iv-row small{color:var(--sub);font-weight:400}
 .iv-result{margin-top:8px;font-size:17px;font-weight:700;color:var(--accent)}
-button:disabled{opacity:.4;cursor:default}
-.full{grid-column:1/-1}
-.card h2{display:flex;align-items:center;justify-content:space-between}
-.qbtn{width:26px;height:26px;padding:0;border-radius:50%;font-size:13px;font-weight:700;color:var(--sub)}
-dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:0;width:min(640px,calc(100vw - 24px));max-height:85vh;overflow:auto}
-dialog::backdrop{background:rgba(0,0,0,.6)}
-.help-head{position:sticky;top:0;background:var(--panel);display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
-.help-head h2{margin:0;font-size:17px}
+canvas{width:100%;height:140px;display:block;background:#15171b;border-radius:10px}
 .help-body{padding:4px 16px 20px;font-size:14px;line-height:1.7}
 .help-body h3{scroll-margin-top:60px;font-size:15px;margin:20px 0 6px;color:var(--accent)}
 .help-body dl{margin:0}
@@ -65,35 +106,46 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 .help-body dd{margin:0 0 0 1em;color:#c8ccd2}
 .help-body ol{padding-left:1.4em;margin:6px 0}
 .sw{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:4px}
+@media (prefers-reduced-motion:reduce){.meter .needle{transition:none}}
 </style>
 </head>
 <body>
-<header>
-  <h1>🥁 Drum Tuner</h1>
-  <button id="helpBtn">？ ヘルプ</button>
-  <button id="micBtn" class="primary">マイク開始</button>
+<header class="top">
+  <select id="drum" aria-label="ドラム"></select>
+  <div class="seg" role="group" aria-label="ヘッド">
+    <button data-head="top">打面</button><button data-head="bottom">ボトム</button>
+  </div>
+  <button class="icon" id="helpBtn" aria-label="ヘルプ">?</button>
+  <button class="icon" data-open="settingsSheet" aria-label="設定">⚙&#xFE0E;</button>
 </header>
 <dialog id="help">
   <div class="help-head"><h2>ヘルプ</h2><button id="helpClose">閉じる</button></div>
   <div class="help-body">
     <h3 id="h-flow">基本の流れ</h3>
     <ol>
-      <li>「マイク開始」を押してマイクを許可する</li>
-      <li>「ドラム」で調整するドラムを選ぶ</li>
-      <li>必要なら「目標」に合わせたい音程を入れる</li>
-      <li>打面を1回叩く → 約0.5秒後に結果が出る</li>
-      <li>表示に従ってチューニングキーを回し、また叩く</li>
+      <li>左上のドラム名をタップして、調整するドラムを選ぶ。右の「打面／ボトム」で測るヘッドを選ぶ</li>
+      <li>下の「● マイク開始」を押してマイクを許可する</li>
+      <li>必要なら「目標を設定」を押して、合わせたい音程を選ぶ</li>
+      <li>ラグの図の下の案内どおりに叩く → 約0.5秒後に結果が出る</li>
+      <li>色と表示に従ってチューニングキーを回し、また叩く</li>
     </ol>
+    <h3 id="h-layout">画面の見かた</h3>
+    <dl>
+      <dt>上のバー</dt><dd>ドラムの種類、打面／ボトムの切り替え、ヘルプ（?）、設定（⚙）。</dd>
+      <dt>まん中</dt><dd>叩いた結果（Hz・音名・メーター）、目標、ラグの図。結果の右に「感度」と「検出範囲」、ラグの図の上に「ラグ数」と「クリア」があります。</dd>
+      <dt>下のバー</dt><dd>「↶ 戻す」直前の記録を取り消す／「● マイク開始」測定の開始と停止／「≡ 結果」ラグ一覧・音程差・スペクトル。</dd>
+      <dt>⚙ 設定</dt><dd>平均する回数、ラグの基準、対角順、記録のオン／オフ、基準ピッチなど、ふだんあまり変えない項目。</dd>
+    </dl>
 
-    <h3 id="h-settings">設定</h3>
+    <h3 id="h-settings">ドラム・目標・設定の項目</h3>
     <dl>
       <dt>ドラム</dt><dd>ドラムの種類を選ぶと、そのドラムで出やすい音程の範囲が自動で入ります。設定と記録はドラムごとに別々に保存されます。「ラグ際タップ」は各ラグの手前を叩いて合わせる用、「カスタム」は範囲を自由に決めたいとき用です。</dd>
       <dt>打面（上） ／ ボトム（下）</dt><dd>どちらのヘッドを測っているかを選びます。ラグ・中央の記録と目標は、ヘッドごとに別々に保存されます。測るときは、反対側のヘッドを手で軽く押さえてミュートしてください。</dd>
       <dt>検出範囲</dt><dd>この範囲の中で一番強い音を「音程」として拾います。倍音（本来より高い音）や低いうなりを拾ってしまうときは、範囲を狭めてください。</dd>
-      <dt>目標</dt><dd>合わせたい音程をHz（ヘルツ）で入れます。右のリストで G2、A2 などの音名から選ぶこともできます。選んだ音名はリストに表示されたままになり、Hzを手で書き換えると「音名から…」に戻ります。空欄でもOKです。</dd>
+      <dt>目標</dt><dd>結果の下の「目標を設定」ボタンから設定します。G2、A2 などの音名から選ぶか、Hz（ヘルツ）で直接入れます。設定するとボタンに「目標 G2 · 98.0 Hz」のように表示されます。Hzを手で書き換えると音名の選択は外れます。目標なしでも使えます。</dd>
       <dt>基準音</dt><dd>目標の音程（目標が空なら最後に測った音程）を「ポー」という音で鳴らします。耳で合わせたいときに使います。もう一度押すと止まります。</dd>
       <dt>基準ピッチ</dt><dd>音名を決めるときの基準（ラの音 A4 の高さ）です。通常は440Hz。日本の吹奏楽やオーケストラでは442Hzが多いので、一緒に演奏する楽器に合わせてください。変えても測ったHzの数字は変わらず、音名・cent表示と「音名から…」の値だけが変わります。音名から選んだ目標は、新しい基準ピッチで自動的に計算し直されます（手入力したHzはそのまま）。</dd>
-      <dt>感度 ／ 緑のバー</dt><dd>緑のバーは今マイクに入っている音量です。叩いても反応しないときは感度を上げ、叩いていないのに反応するときは下げてください。</dd>
+      <dt>感度 ／ 緑のバー</dt><dd>感度のつまみの下の細い緑のバーは、今マイクに入っている音量です。叩いても反応しないときは感度を上げ、叩いていないのに反応するときは下げてください。</dd>
     </dl>
 
     <h3 id="h-result">測定結果</h3>
@@ -110,11 +162,11 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     <h3 id="h-lugs">ラグごとのチューニング</h3>
     <p>ラグ（チューニングボルト）ごとの音程をそろえると、ヘッド全体の張りが均一になり、音がきれいに伸びます。</p>
     <dl>
-      <dt>ラグ数</dt><dd>ドラムのボルトの本数に合わせます。</dd>
-      <dt>ヒットをラグに記録</dt><dd>オンにすると、叩くたびに白い枠で選ばれているラグに値を記録します。全体の音程だけ見たいときはオフにします。</dd>
+      <dt>ラグ数 ／ クリア</dt><dd>ラグの図の上にあります。ラグ数はドラムのボルトの本数に合わせます。「クリア」は今のドラム・ヘッドの記録を全部消します（「↶ 戻す」で元に戻せます）。</dd>
+      <dt>叩いた結果をラグに記録</dt><dd>オンにすると、叩くたびに白い枠で選ばれているラグに値を記録します。全体の音程だけ見たいときはオフにします。</dd>
       <dt>対角順に進む</dt><dd>記録後、次は向かい側のラグへ自動で移ります（チューニングの定番の順番）。オフだと時計回りに進みます。</dd>
       <dt>平均する回数</dt><dd>2回・3回にすると、同じ場所を指定した回数だけ叩いた平均を記録します。叩く強さのムラによるぶれが減ります。途中経過と、確定した値のばらつき（±Hz）がラグの図の下に表示されます。</dd>
-      <dt>↶ 1つ戻す</dt><dd>直前の記録を取り消して、そのラグ（または中央）を選び直します。叩き損ねたときやほかの音を拾ったときに使います。平均の途中なら、最後の1打だけを取り消します。「クリア」も取り消せます。続けて押すと、さらに前に戻ります（アプリを開き直すと戻れなくなります）。</dd>
+      <dt>↶ 戻す（下のバー）</dt><dd>直前の記録を取り消して、そのラグ（または中央）を選び直します。叩き損ねたときやほかの音を拾ったときに使います。平均の途中なら、最後の1打だけを取り消します。「クリア」も取り消せます。続けて押すと、さらに前に戻ります（アプリを開き直すと戻れなくなります）。</dd>
       <dt>丸をクリック</dt><dd>そのラグ（または中央）を選び直せます。測り直したいときに使います。</dd>
       <dt>中央</dt><dd>全部のラグを一周すると、自動で「中央」が選ばれます。打面の中央を叩くと、ドラム全体の音程として記録されます。中央の丸の色は目標値とのずれ（目標が空なら青）で、ラグの基準とは比べません（中央の音はラグ際より低く出るのが普通のため）。</dd>
       <dt>ラグの基準</dt><dd>ラグを何と比べるかを選びます。<br>・ラグ平均：測ったラグ同士の平均と比べ、ラグ同士がそろっているかを見ます（通常はこちら。ラグ際の音は中央より高く出るため）。<br>・目標：目標欄の値と比べます。ラグ際の音程で目標を決めているときに使います。目標が空のときはラグ平均になります。</dd>
@@ -125,7 +177,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <dt>叩き方</dt><dd>各ラグの手前（フチから2〜3cm内側）を、スティックで軽く同じ強さで叩きます。反対側のヘッドは手で軽く押さえてミュートすると測りやすくなります。</dd>
     </dl>
 
-    <h3 id="h-table">ラグ一覧</h3>
+    <h3 id="h-table">結果（下のバーの ≡）</h3>
     <dl>
       <dt>差(Hz) ／ 差(cent)</dt><dd>「ラグの基準」とのずれです。マイナスは低い、プラスは高い。一番下の「中央」の行は、目標値とのずれと音名を表示します。</dd>
       <dt>▲ ／ ▼ ／ ✓</dt><dd>▲＝そのラグを締める、▼＝緩める、✓＝そろっている。</dd>
@@ -141,7 +193,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     <p>ネットにつながっているときは、開くたびに最新版を読み込みます。</p>
 
     <h3 id="h-spec">スペクトル</h3>
-    <p>叩いた音にどの高さの成分がどれだけ含まれているかのグラフです。横が音の高さ（右ほど高い）、山が高いほどその音が強く出ています。</p>
+    <p>「≡ 結果」の一番下にあります。叩いた音にどの高さの成分がどれだけ含まれているかのグラフです。横が音の高さ（右ほど高い）、山が高いほどその音が強く出ています。</p>
     <dl>
       <dt>青い帯</dt><dd>検出範囲です。</dd>
       <dt>緑の縦線</dt><dd>今回「音程」として拾った位置です。</dd>
@@ -150,80 +202,86 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     <p>緑の線が明らかに違う山に立っているときは、検出範囲を調整してください。</p>
   </div>
 </dialog>
-<main>
-  <section class="card">
-    <h2>設定 <button class="qbtn" data-h="h-settings" aria-label="設定のヘルプ">?</button></h2>
-    <div class="row">
-      <label>ドラム</label>
-      <select id="drum"></select>
-      <select id="head" aria-label="ヘッド"><option value="top">打面（上）</option><option value="bottom">ボトム（下）</option></select>
+<main class="app">
+  <section class="result" aria-live="polite">
+    <div class="result-top">
+      <div class="readout">
+        <div class="big" id="freq">---<small>Hz</small></div>
+        <div class="note" id="noteName">&nbsp;</div>
+      </div>
+      <div class="pickup">
+        <div class="pk">
+          <label for="sens">感度</label>
+          <input id="sens" type="range" min="1" max="100" value="60">
+          <div id="level" title="マイクの音量"><div></div></div>
+        </div>
+        <div class="pk">
+          <span class="pk-label">検出範囲（Hz）</span>
+          <span class="range-pair"><input id="fmin" type="number" min="20" max="2000" inputmode="numeric" aria-label="検出範囲の下限"><span>〜</span><input id="fmax" type="number" min="20" max="2000" inputmode="numeric" aria-label="検出範囲の上限"></span>
+        </div>
+      </div>
     </div>
-    <div class="row">
-      <label>検出範囲</label>
-      <input id="fmin" type="number" min="20" max="2000"> 〜
-      <input id="fmax" type="number" min="20" max="2000"> Hz
-    </div>
-    <div class="row">
-      <label>目標</label>
-      <input id="target" type="number" step="0.1" placeholder="Hz（任意）">
-      <select id="targetNote"><option value="">音名から…</option></select>
-      <button id="toneBtn">基準音</button>
-    </div>
-    <div class="row">
-      <label>基準ピッチ A4 =</label>
-      <select id="a4"></select> Hz
-    </div>
-    <div class="row">
-      <label>感度</label>
-      <input id="sens" type="range" min="1" max="100" value="60">
-    </div>
-    <div id="level"><div></div></div>
-    <div class="hint">打面を軽く1回叩くと、そのヒットのピッチを測ります。</div>
-  </section>
-
-  <section class="card">
-    <h2>測定結果 <button class="qbtn" data-h="h-result" aria-label="測定結果のヘルプ">?</button></h2>
-    <div class="big" id="freq">--- <small style="font-size:22px">Hz</small></div>
-    <div class="note" id="noteName">&nbsp;</div>
     <div class="meter"><div class="center"></div><div class="needle" id="needle"></div></div>
-    <div class="hint" id="diff">目標を設定すると差を表示します（±50セント）</div>
+    <div class="hint" id="diff">「マイク開始」を押して、ドラムを1回叩いてください</div>
+    <div class="target-row">
+      <button class="chip" id="targetChip" data-open="targetSheet">目標を設定 ✎</button>
+      <button class="chip" id="toneBtn">♪ 基準音</button>
+    </div>
   </section>
 
-  <section class="card">
-    <h2>ラグごとのチューニング <button class="qbtn" data-h="h-lugs" aria-label="ラグのヘルプ">?</button></h2>
-    <div class="row">
-      <label>ラグ数</label>
-      <select id="lugCount"><option>4</option><option>5</option><option selected>6</option><option>8</option><option>10</option><option>12</option></select>
-      <label><input type="checkbox" id="lugRec" checked> ヒットをラグに記録</label>
-      <label><input type="checkbox" id="star" checked> 対角順に進む</label>
+  <section class="lugs-area">
+    <div class="lug-tools">
+      <label class="mini">ラグ <select id="lugCount"><option>4</option><option>5</option><option selected>6</option><option>8</option><option>10</option><option>12</option></select></label>
+      <span class="hint" id="lugRef"></span>
+      <button class="mini-btn danger" id="clearLugs">クリア</button>
     </div>
-    <div class="row">
-      <label>ラグの基準</label>
-      <select id="lugRefMode"><option value="avg">ラグ平均</option><option value="target">目標</option></select>
-      <label>平均する回数</label>
-      <select id="avgCount"><option value="1">1回</option><option value="2">2回</option><option value="3">3回</option></select>
-    </div>
-    <div class="row">
-      <button id="undoBtn" disabled>↶ 1つ戻す</button>
-      <button id="clearLugs">クリア</button>
-    </div>
-    <div class="hint" id="lugRef" style="text-align:center;margin:0 0 6px"></div>
-    <svg id="lugSvg" viewBox="0 0 260 260" style="width:100%;max-width:300px;display:block;margin:0 auto"></svg>
-    <div class="hint" id="lugHint"></div>
-  </section>
-
-  <section class="card">
-    <h2>ラグ一覧 <button class="qbtn" data-h="h-table" aria-label="ラグ一覧のヘルプ">?</button></h2>
-    <table id="lugTable"></table>
-    <div class="hint">ラグは「ラグの基準」で選んだ値と、中央は目標値と比べます。▲＝締める ▼＝緩める</div>
-    <div id="interval" class="interval"></div>
-  </section>
-
-  <section class="card full">
-    <h2>スペクトル <button class="qbtn" data-h="h-spec" aria-label="スペクトルのヘルプ">?</button></h2>
-    <canvas id="spec" width="960" height="160"></canvas>
+    <svg id="lugSvg" viewBox="0 0 260 260" aria-label="ラグの図"></svg>
+    <div id="lugHint"></div>
   </section>
 </main>
+
+<nav class="bottombar">
+  <button class="bb" id="undoBtn" disabled><span class="ic">↶</span>戻す</button>
+  <button id="micBtn">● マイク開始</button>
+  <button class="bb" data-open="listSheet"><span class="ic">≡</span>結果</button>
+</nav>
+
+<dialog class="sheet" id="targetSheet">
+  <div class="sheet-head"><h2>目標の音程</h2><button class="sheet-close">閉じる</button></div>
+  <div class="sheet-body">
+    <div class="field"><label for="targetNote">音名から選ぶ</label><select id="targetNote"><option value="">選ばない</option></select></div>
+    <div class="field"><label for="target">Hzで入力</label><input id="target" type="number" step="0.1" inputmode="decimal" placeholder="例 98.0"></div>
+    <button class="wide" id="targetClear">目標を消す</button>
+    <p class="hint">目標はドラムとヘッドごとに保存されます。音名の基準（A4）は設定で変えられます。</p>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="settingsSheet">
+  <div class="sheet-head"><h2>設定</h2><button class="sheet-close">閉じる</button></div>
+  <div class="sheet-body">
+    <div class="group">ラグの測り方</div>
+    <div class="field"><label for="avgCount">平均する回数<small>同じ場所を何回叩いて平均するか</small></label><select id="avgCount"><option value="1">1回</option><option value="2">2回</option><option value="3">3回</option></select></div>
+    <div class="field"><label for="lugRefMode">ラグの基準<small>ラグの色を何と比べるか</small></label><select id="lugRefMode"><option value="avg">ラグ平均</option><option value="target">目標</option></select></div>
+    <div class="field"><label for="star">対角順に進む</label><input type="checkbox" id="star" checked></div>
+    <div class="field"><label for="lugRec">叩いた結果をラグに記録</label><input type="checkbox" id="lugRec" checked></div>
+
+    <div class="group">音名</div>
+    <div class="field"><label for="a4">基準ピッチ A4</label><span class="range-pair"><select id="a4"></select> Hz</span></div>
+
+    <button class="wide" id="settingsHelp">使い方を見る</button>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="listSheet">
+  <div class="sheet-head"><h2>結果</h2><button class="qbtn" data-h="h-table" aria-label="結果のヘルプ">?</button><button class="sheet-close">閉じる</button></div>
+  <div class="sheet-body">
+    <table id="lugTable"></table>
+    <div class="hint">ラグは「ラグの基準」と、中央は目標と比べます。▲＝締める ▼＝緩める</div>
+    <div id="interval" class="interval"></div>
+    <div class="group" style="display:flex;justify-content:space-between;align-items:center">最後に叩いた音のスペクトル <button class="qbtn" data-h="h-spec" aria-label="スペクトルのヘルプ">?</button></div>
+    <canvas id="spec" width="960" height="160"></canvas>
+  </div>
+</dialog>
 
 <script>
 const DRUMS = {
@@ -280,26 +338,41 @@ const HEAD_NAME={top:'打面',bottom:'ボトム'};
 function applyDrum(){
   const d = DRUMS[state.drum];
   $('drum').value = state.drum;
-  $('head').value = state.head;
+  document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on', b.dataset.head===state.head));
   $('fmin').value = state.fmin?.[state.drum] ?? d.min;
   $('fmax').value = state.fmax?.[state.drum] ?? d.max;
   $('target').value = state.targets[K()] ?? '';
   $('targetNote').value = state.notes[K()] ?? '';
   pending=[];
+  renderTargetChip();
   renderLugs();
 }
 $('drum').onchange = e => {state.drum=e.target.value; selected=0; save(); applyDrum()};
-$('head').onchange = e => {state.head=e.target.value; selected=0; save(); applyDrum()};
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
+  if(state.head===b.dataset.head)return;
+  state.head=b.dataset.head; selected=0; save(); applyDrum();
+});
 $('fmin').onchange = e => {(state.fmin||={})[state.drum]=+e.target.value; save()};
 $('fmax').onchange = e => {(state.fmax||={})[state.drum]=+e.target.value; save()};
-function setTarget(v){state.targets[K()]=v; $('target').value=v; save(); renderLugs(); showResult(lastFreq)}
+function setTarget(v){state.targets[K()]=v; $('target').value=v; save(); renderTargetChip(); renderLugs(); showResult(lastFreq)}
+function midiName(m){return NOTES[m%12]+(Math.floor(m/12)-1)}
+// メイン画面の「目標」ボタンの表示
+function renderTargetChip(){
+  const t=target(), m=state.notes[K()];
+  $('targetChip').textContent = t
+    ? '目標 ' + (m!==undefined && m!=='' ? midiName(+m)+' · ' : '') + t.toFixed(1) + ' Hz ✎'
+    : '目標を設定 ✎';
+}
 // 手入力したら音名の選択は外す
 $('target').oninput = e => {state.notes[K()]=''; $('targetNote').value=''; setTarget(e.target.value)};
 $('targetNote').onchange = e => {
   const m=e.target.value; state.notes[K()]=m;
   setTarget(m===''?'':midiToHz(+m).toFixed(1));
 };
+$('targetClear').onclick = () => {state.notes[K()]=''; $('targetNote').value=''; setTarget(''); $('targetSheet').close()};
 $('lugCount').value = state.lugCount;
+$('sens').value = state.sens ?? 60;
+$('sens').onchange = e => {state.sens=+e.target.value; save()};
 $('lugRefMode').value = state.lugRefMode || 'avg';
 $('lugRefMode').onchange = e => {state.lugRefMode=e.target.value; save(); renderLugs()};
 $('avgCount').value = state.avgCount || 1;
@@ -308,6 +381,7 @@ $('lugCount').onchange = e => {state.lugCount=+e.target.value; selected=0; pendi
 $('clearLugs').onclick = () => {
   pushHistory({type:'clear', key:K(), lugs:[...curLugs()], center:state.centers[K()]??null, sel:selected});
   state.lugs[K()]=[]; state.centers[K()]=null; selected=0; pending=[]; save(); renderLugs();
+  $('settingsSheet').close();
 };
 $('undoBtn').onclick = undo;
 
@@ -338,7 +412,7 @@ function target(){const t=parseFloat($('target').value);return t>0?t:null}
 let lastFreq = null;
 function showResult(f){
   if(!f){return}
-  $('freq').innerHTML = f.toFixed(1)+' <small style="font-size:22px">Hz</small>';
+  $('freq').innerHTML = f.toFixed(1)+'<small>Hz</small>';
   const n = hzToNote(f);
   $('noteName').textContent = `${n.name}  ${n.cents>=0?'+':''}${n.cents.toFixed(0)} cent`;
   const t = target();
@@ -415,9 +489,9 @@ function renderLugs(){
   $('lugHint').textContent = hint;
   $('undoBtn').disabled = !pending.length && !undoStack.length;
   renderInterval();
-  $('lugRef').textContent = useTargetForLugs() ? `ラグの基準: 目標 ${ref.toFixed(1)} Hz`
-    : state.lugRefMode==='target' ? `目標が空なので、ラグ平均と比べています${ref?`（${ref.toFixed(1)} Hz）`:''}`
-    : ref ? `ラグの基準: ラグ平均 ${ref.toFixed(1)} Hz` : '';
+  $('lugRef').textContent = useTargetForLugs() ? `基準: 目標 ${ref.toFixed(1)} Hz`
+    : state.lugRefMode==='target' ? `目標なし→平均${ref?` ${ref.toFixed(1)} Hz`:''}`
+    : ref ? `基準: 平均 ${ref.toFixed(1)} Hz` : '';
   let t='<tr><th>ラグ</th><th>Hz</th><th>差(Hz)</th><th>差(cent)</th><th></th></tr>';
   for(let i=0;i<n;i++){
     const f=lugs[i]; if(!f){t+=`<tr><td>${i+1}</td><td>—</td><td></td><td></td><td></td></tr>`;continue}
@@ -535,21 +609,29 @@ function drawSpectrum(res){
 }
 
 // ---------- Microphone / hit detection ----------
-let ac=null, analyser=null, running=false;
+let ac=null, analyser=null, running=false, micStream=null, micSrc=null, rafId=0;
 $('micBtn').onclick=async()=>{
-  if(running){location.reload();return}
+  if(running){ // 停止
+    running=false; cancelAnimationFrame(rafId);
+    micStream?.getTracks().forEach(t=>t.stop()); micSrc?.disconnect();
+    $('micBtn').textContent='● マイク開始'; $('micBtn').className='';
+    $('level').firstChild.style.width='0';
+    return;
+  }
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
     ac=ac||new AudioContext(); await ac.resume();
-    const src=ac.createMediaStreamSource(stream);
+    micSrc=ac.createMediaStreamSource(micStream);
     analyser=ac.createAnalyser();analyser.fftSize=32768;analyser.smoothingTimeConstant=0;
-    src.connect(analyser);running=true;
-    $('micBtn').textContent='停止';$('micBtn').className='rec';
+    micSrc.connect(analyser);running=true; buf=null; waiting=false;
+    $('micBtn').textContent='■ 停止';$('micBtn').className='rec';
+    if(!lastFreq) $('diff').textContent='ドラムを1回叩いてください';
     loop();
-  }catch(e){alert('マイクを使用できません: '+e.message)}
+  }catch(e){ $('diff').textContent='マイクを使えませんでした。ブラウザの設定でマイクを許可してください。' }
 };
 let buf, floor=0.001, hitAt=0, waiting=false;
 function loop(){
+  if(!running)return;
   buf=buf||new Float32Array(analyser.fftSize);
   analyser.getFloatTimeDomainData(buf);
   let s=0;for(let i=buf.length-1024;i<buf.length;i++)s+=buf[i]*buf[i];
@@ -570,14 +652,21 @@ function loop(){
     }
   }
   if(!waiting) floor=floor*0.98+rms*0.02;
-  requestAnimationFrame(loop);
+  rafId=requestAnimationFrame(loop);
 }
 
-// ---------- Help ----------
-function openHelp(id){const d=$("help");d.showModal();const el=id&&document.getElementById(id);if(el)el.scrollIntoView({block:"start"});else d.querySelector(".help-body").scrollTop=0}
+// ---------- シート（設定・目標・一覧）とヘルプ ----------
+document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>$(b.dataset.open).showModal());
+document.querySelectorAll('.sheet-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());
+document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close()}));
+function openHelp(id){
+  document.querySelectorAll('dialog.sheet[open]').forEach(d=>d.close());
+  const d=$("help");d.showModal();const el=id&&document.getElementById(id);
+  if(el)el.scrollIntoView({block:"start"});else d.querySelector(".help-body").scrollTop=0;
+}
 $("helpBtn").onclick=()=>openHelp("h-flow");
+$("settingsHelp").onclick=()=>openHelp("h-flow");
 $("helpClose").onclick=()=>$("help").close();
-$("help").addEventListener("click",e=>{if(e.target===$("help"))$("help").close()});
 document.querySelectorAll(".qbtn").forEach(b=>b.onclick=()=>openHelp(b.dataset.h));
 if(!store.get("seenHelp",false)){store.set("seenHelp",true);openHelp("h-flow")}
 
