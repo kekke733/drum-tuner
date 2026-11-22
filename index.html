@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drum Tuner</title>
+<style>
+:root{--bg:#14161a;--panel:#1d2026;--line:#2c3038;--text:#e8eaed;--sub:#9aa0a8;--accent:#4fb3ff;--ok:#3ecf7a;--warn:#f2c14e;--bad:#ef5b5b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif}
+header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;flex:1}
+main{max-width:1000px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns:1fr 1fr}
+@media(max-width:760px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h2{font-size:14px;color:var(--sub);margin:0 0 12px;font-weight:600}
+button,select,input{font:inherit;color:var(--text);background:#262a31;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+button{cursor:pointer}button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#06121d;border:none;font-weight:700}
+button.rec{background:var(--bad);color:#fff;border:none}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+label{font-size:13px;color:var(--sub)}
+input[type=number]{width:90px}
+.big{font-size:56px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.note{font-size:22px;color:var(--sub);margin-top:6px}
+.meter{position:relative;height:26px;background:#262a31;border-radius:13px;margin-top:14px;overflow:hidden}
+.meter .center{position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--sub)}
+.meter .needle{position:absolute;top:3px;bottom:3px;width:10px;margin-left:-5px;border-radius:5px;background:var(--accent);left:50%;transition:left .15s}
+.hint{font-size:13px;color:var(--sub);margin-top:8px;min-height:1.2em}
+canvas{width:100%;height:160px;display:block;background:#15171b;border-radius:8px}
+#level{height:6px;background:#262a31;border-radius:3px;overflow:hidden;margin-top:8px}
+#level div{height:100%;width:0;background:var(--ok)}
+svg text{fill:var(--text);font-size:11px;text-anchor:middle;dominant-baseline:middle}
+.lug{cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+td,th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right}
+th{color:var(--sub);font-weight:500}
+td:first-child,th:first-child{text-align:left}
+.full{grid-column:1/-1}
+</style>
+</head>
+<body>
+<header>
+  <h1>🥁 Drum Tuner</h1>
+  <button id="micBtn" class="primary">マイク開始</button>
+</header>
+<main>
+  <section class="card">
+    <h2>設定</h2>
+    <div class="row">
+      <label>ドラム</label>
+      <select id="drum"></select>
+    </div>
+    <div class="row">
+      <label>検出範囲</label>
+      <input id="fmin" type="number" min="20" max="2000"> 〜
+      <input id="fmax" type="number" min="20" max="2000"> Hz
+    </div>
+    <div class="row">
+      <label>目標</label>
+      <input id="target" type="number" step="0.1" placeholder="Hz（任意）">
+      <select id="targetNote"><option value="">音名から…</option></select>
+      <button id="toneBtn">基準音</button>
+    </div>
+    <div class="row">
+      <label>感度</label>
+      <input id="sens" type="range" min="1" max="100" value="60">
+    </div>
+    <div id="level"><div></div></div>
+    <div class="hint">打面を軽く1回叩くと、そのヒットのピッチを測ります。</div>
+  </section>
+
+  <section class="card">
+    <h2>測定結果</h2>
+    <div class="big" id="freq">--- <small style="font-size:22px">Hz</small></div>
+    <div class="note" id="noteName">&nbsp;</div>
+    <div class="meter"><div class="center"></div><div class="needle" id="needle"></div></div>
+    <div class="hint" id="diff">目標を設定すると差を表示します（±50セント）</div>
+  </section>
+
+  <section class="card">
+    <h2>ラグごとのチューニング</h2>
+    <div class="row">
+      <label>ラグ数</label>
+      <select id="lugCount"><option>4</option><option>5</option><option selected>6</option><option>8</option><option>10</option><option>12</option></select>
+      <label><input type="checkbox" id="lugRec" checked> ヒットをラグに記録</label>
+      <label><input type="checkbox" id="star" checked> 対角順に進む</label>
+      <button id="clearLugs">クリア</button>
+    </div>
+    <svg id="lugSvg" viewBox="0 0 260 260" style="width:100%;max-width:300px;display:block;margin:0 auto"></svg>
+    <div class="hint" id="lugHint"></div>
+  </section>
+
+  <section class="card">
+    <h2>ラグ一覧</h2>
+    <table id="lugTable"></table>
+    <div class="hint">基準＝目標値（未設定ならラグ平均）。▲＝締める ▼＝緩める</div>
+  </section>
+
+  <section class="card full">
+    <h2>スペクトル</h2>
+    <canvas id="spec" width="960" height="160"></canvas>
+  </section>
+</main>
+
+<script>
+const DRUMS = {
+  kick:   {name:'バスドラム',     min:35,  max:110},
+  floor16:{name:'フロアタム 16"', min:60,  max:140},
+  floor14:{name:'フロアタム 14"', min:70,  max:170},
+  tom13:  {name:'タム 13"',       min:90,  max:220},
+  tom12:  {name:'タム 12"',       min:100, max:250},
+  tom10:  {name:'タム 10"',       min:120, max:300},
+  snare:  {name:'スネア',         min:150, max:450},
+  lugtap: {name:'ラグ際タップ（倍音）', min:150, max:1200},
+  custom: {name:'カスタム',       min:40,  max:1000},
+};
+const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const $ = id => document.getElementById(id);
+const store = {
+  get(k,d){try{const v=localStorage.getItem('drumtuner:'+k);return v?JSON.parse(v):d}catch{return d}},
+  set(k,v){try{localStorage.setItem('drumtuner:'+k,JSON.stringify(v))}catch{}}
+};
+
+// ---------- UI setup ----------
+for (const [k,d] of Object.entries(DRUMS)) $('drum').add(new Option(d.name,k));
+for (let m=28;m<=84;m++) $('targetNote').add(new Option(NOTES[m%12]+(Math.floor(m/12)-1)+'  ('+midiToHz(m).toFixed(1)+' Hz)', m));
+
+let state = store.get('state', {drum:'tom12', target:'', lugCount:6, lugs:{}});
+function lugsKey(){return state.drum}
+function curLugs(){return state.lugs[lugsKey()] ||= []}
+function save(){store.set('state',state)}
+
+function applyDrum(){
+  const d = DRUMS[state.drum];
+  $('drum').value = state.drum;
+  $('fmin').value = state.fmin?.[state.drum] ?? d.min;
+  $('fmax').value = state.fmax?.[state.drum] ?? d.max;
+  $('target').value = state.targets?.[state.drum] ?? '';
+  renderLugs();
+}
+$('drum').onchange = e => {state.drum=e.target.value; selected=0; save(); applyDrum()};
+$('fmin').onchange = e => {(state.fmin||={})[state.drum]=+e.target.value; save()};
+$('fmax').onchange = e => {(state.fmax||={})[state.drum]=+e.target.value; save()};
+$('target').oninput = e => {(state.targets||={})[state.drum]=e.target.value; save(); renderLugs(); showResult(lastFreq)};
+$('targetNote').onchange = e => {
+  if(e.target.value==='')return;
+  $('target').value = midiToHz(+e.target.value).toFixed(1);
+  $('target').oninput({target:$('target')}); e.target.value='';
+};
+$('lugCount').value = state.lugCount;
+$('lugCount').onchange = e => {state.lugCount=+e.target.value; selected=0; save(); renderLugs()};
+$('clearLugs').onclick = () => {state.lugs[lugsKey()]=[]; selected=0; save(); renderLugs()};
+
+function midiToHz(m){return 440*Math.pow(2,(m-69)/12)}
+function hzToNote(f){
+  const m = 69+12*Math.log2(f/440), r = Math.round(m);
+  return {name:NOTES[(r%12+12)%12]+(Math.floor(r/12)-1), cents:(m-r)*100};
+}
+function cents(f,ref){return 1200*Math.log2(f/ref)}
+function target(){const t=parseFloat($('target').value);return t>0?t:null}
+
+// ---------- Result display ----------
+let lastFreq = null;
+function showResult(f){
+  if(!f){return}
+  $('freq').innerHTML = f.toFixed(1)+' <small style="font-size:22px">Hz</small>';
+  const n = hzToNote(f);
+  $('noteName').textContent = `${n.name}  ${n.cents>=0?'+':''}${n.cents.toFixed(0)} cent`;
+  const t = target();
+  const c = t ? cents(f,t) : n.cents;
+  const clamp = Math.max(-50,Math.min(50,c));
+  $('needle').style.left = (50+clamp)+'%';
+  $('needle').style.background = Math.abs(c)<5?'var(--ok)':Math.abs(c)<20?'var(--warn)':'var(--bad)';
+  if(t){
+    const dir = Math.abs(c)<5 ? 'ぴったり！' : c<0 ? '低い → 締める' : '高い → 緩める';
+    $('diff').textContent = `目標 ${t.toFixed(1)} Hz との差: ${(f-t>=0?'+':'')+(f-t).toFixed(1)} Hz / ${(c>=0?'+':'')+c.toFixed(0)} cent  ${dir}`;
+  } else {
+    $('diff').textContent = '最寄りの音名との差を表示中';
+  }
+}
+
+// ---------- Lug view ----------
+let selected = 0;
+function lugOrder(n){
+  // 対角（スター）順：直前のラグから最も遠い未測定ラグへ進む
+  const dist=(a,b)=>{const d=Math.abs(a-b)%n;return Math.min(d,n-d)};
+  const o=[0], used=new Set([0]);
+  while(o.length<n){
+    const last=o[o.length-1], prev=o[o.length-2];
+    let best=-1,score=-1;
+    for(let i=0;i<n;i++){ if(used.has(i))continue;
+      const s=dist(i,last)*10+(prev===undefined?0:dist(i,prev));
+      if(s>score){score=s;best=i} }
+    o.push(best);used.add(best);
+  }
+  return o;
+}
+function lugRef(){
+  const t=target(); if(t)return t;
+  const v=curLugs().slice(0,state.lugCount).filter(Boolean);
+  return v.length? v.reduce((a,b)=>a+b,0)/v.length : null;
+}
+function colorFor(c){return Math.abs(c)<8?'var(--ok)':Math.abs(c)<20?'var(--warn)':'var(--bad)'}
+function renderLugs(){
+  const n=state.lugCount, lugs=curLugs(), ref=lugRef(), svg=$('lugSvg');
+  let s=`<circle cx="130" cy="130" r="95" fill="#262a31" stroke="#3a3f48" stroke-width="6"/>`;
+  for(let i=0;i<n;i++){
+    const a=-Math.PI/2+i*2*Math.PI/n, x=130+112*Math.cos(a), y=130+112*Math.sin(a);
+    const f=lugs[i], c=f&&ref?cents(f,ref):null;
+    const fill=f?(c!==null?colorFor(c):'var(--accent)'):'#2c3038';
+    s+=`<g class="lug" data-i="${i}"><circle cx="${x}" cy="${y}" r="15" fill="${fill}" stroke="${i===selected?'#fff':'none'}" stroke-width="3"/>
+        <text x="${x}" y="${y}" style="fill:${f?'#111':'#ccc'};font-weight:700">${i+1}</text></g>`;
+    if(f){const ix=130+70*Math.cos(a), iy=130+70*Math.sin(a);s+=`<text x="${ix}" y="${iy}">${f.toFixed(0)}</text>`}
+  }
+  if(ref)s+=`<text x="130" y="122" style="fill:var(--sub)">基準</text><text x="130" y="140" style="font-size:16px;font-weight:700">${ref.toFixed(1)} Hz</text>`;
+  svg.innerHTML=s;
+  svg.querySelectorAll('.lug').forEach(g=>g.onclick=()=>{selected=+g.dataset.i;renderLugs()});
+  $('lugHint').textContent=`ラグ ${selected+1} の近く（端から2〜3cm）を叩いてください。ラグをクリックで選択。`;
+  let t='<tr><th>ラグ</th><th>Hz</th><th>差(Hz)</th><th>差(cent)</th><th></th></tr>';
+  for(let i=0;i<n;i++){
+    const f=lugs[i]; if(!f){t+=`<tr><td>${i+1}</td><td>—</td><td></td><td></td><td></td></tr>`;continue}
+    const d=ref?f-ref:0,c=ref?cents(f,ref):0;
+    const mark=Math.abs(c)<8?'✓':c<0?'▲':'▼';
+    t+=`<tr><td>${i+1}</td><td>${f.toFixed(1)}</td><td>${(d>=0?'+':'')+d.toFixed(1)}</td><td style="color:${colorFor(c)}">${(c>=0?'+':'')+c.toFixed(0)}</td><td>${mark}</td></tr>`;
+  }
+  $('lugTable').innerHTML=t;
+}
+function recordLug(f){
+  if(!$('lugRec').checked)return;
+  const lugs=curLugs(); lugs[selected]=f; save();
+  const n=state.lugCount;
+  if($('star').checked){const o=lugOrder(n);selected=o[(o.indexOf(selected)+1)%n]}
+  else selected=(selected+1)%n;
+  renderLugs();
+}
+
+// ---------- Reference tone ----------
+let toneOsc=null;
+$('toneBtn').onclick=()=>{
+  const t=target()||lastFreq; if(!t)return;
+  const ctx=ac||(ac=new AudioContext());
+  if(toneOsc){toneOsc.stop();toneOsc=null;$('toneBtn').textContent='基準音';return}
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.frequency.value=t;g.gain.value=0.2;o.connect(g).connect(ctx.destination);o.start();
+  toneOsc=o;$('toneBtn').textContent='停止';
+};
+
+// ---------- FFT ----------
+function fft(re,im){
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]]}}
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len,wr=Math.cos(ang),wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){let cr=1,ci=0;
+      for(let k=0;k<len/2;k++){const a=i+k,b=a+len/2,tr=re[b]*cr-im[b]*ci,ti=re[b]*ci+im[b]*cr;
+        re[b]=re[a]-tr;im[b]=im[a]-ti;re[a]+=tr;im[a]+=ti;const nr=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=nr}}
+  }
+}
+function analyze(seg,sr){
+  const N=65536, re=new Float64Array(N), im=new Float64Array(N);
+  for(let i=0;i<seg.length;i++)re[i]=seg[i]*(0.5-0.5*Math.cos(2*Math.PI*i/(seg.length-1)));
+  fft(re,im);
+  const mag=new Float32Array(N/2);
+  for(let i=0;i<N/2;i++)mag[i]=Math.hypot(re[i],im[i]);
+  const fmin=+$('fmin').value, fmax=+$('fmax').value, bin=sr/N;
+  let lo=Math.max(2,Math.floor(fmin/bin)), hi=Math.min(N/2-2,Math.ceil(fmax/bin)), p=lo;
+  for(let i=lo;i<=hi;i++)if(mag[i]>mag[p])p=i;
+  const a=Math.log(mag[p-1]+1e-12),b=Math.log(mag[p]+1e-12),c=Math.log(mag[p+1]+1e-12);
+  const off=0.5*(a-c)/(a-2*b+c);
+  return {freq:(p+(isFinite(off)?off:0))*bin, mag, bin};
+}
+function drawSpectrum(res){
+  const cv=$('spec'),g=cv.getContext('2d'),W=cv.width,H=cv.height;
+  g.clearRect(0,0,W,H);
+  const fmin=Math.max(20,+$('fmin').value*0.5), fmax=+$('fmax').value*1.5;
+  const lx=f=>(Math.log(f/fmin)/Math.log(fmax/fmin))*W;
+  g.fillStyle='rgba(79,179,255,.12)';g.fillRect(lx(+$('fmin').value),0,lx(+$('fmax').value)-lx(+$('fmin').value),H);
+  let mx=0;const i0=Math.floor(fmin/res.bin),i1=Math.ceil(fmax/res.bin);
+  for(let i=i0;i<=i1;i++)mx=Math.max(mx,res.mag[i]);
+  g.strokeStyle='#4fb3ff';g.lineWidth=1.5;g.beginPath();
+  for(let i=i0;i<=i1;i++){const x=lx(i*res.bin),y=H-(res.mag[i]/mx)*(H-14);i===i0?g.moveTo(x,y):g.lineTo(x,y)}
+  g.stroke();
+  g.strokeStyle='#3ecf7a';g.beginPath();g.moveTo(lx(res.freq),0);g.lineTo(lx(res.freq),H);g.stroke();
+  g.fillStyle='#9aa0a8';g.font='12px sans-serif';
+  for(const f of [30,50,100,200,300,500,1000,2000])if(f>fmin&&f<fmax)g.fillText(f+'Hz',lx(f)+3,12);
+  const t=target();
+  if(t&&t>fmin&&t<fmax){g.strokeStyle='#f2c14e';g.setLineDash([4,4]);g.beginPath();g.moveTo(lx(t),0);g.lineTo(lx(t),H);g.stroke();g.setLineDash([])}
+}
+
+// ---------- Microphone / hit detection ----------
+let ac=null, analyser=null, running=false;
+$('micBtn').onclick=async()=>{
+  if(running){location.reload();return}
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    ac=ac||new AudioContext(); await ac.resume();
+    const src=ac.createMediaStreamSource(stream);
+    analyser=ac.createAnalyser();analyser.fftSize=32768;analyser.smoothingTimeConstant=0;
+    src.connect(analyser);running=true;
+    $('micBtn').textContent='停止';$('micBtn').className='rec';
+    loop();
+  }catch(e){alert('マイクを使用できません: '+e.message)}
+};
+let buf, floor=0.001, hitAt=0, waiting=false;
+function loop(){
+  buf=buf||new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(buf);
+  let s=0;for(let i=buf.length-1024;i<buf.length;i++)s+=buf[i]*buf[i];
+  const rms=Math.sqrt(s/1024);
+  $('level').firstChild.style.width=Math.min(100,rms*400)+'%';
+  const sens=+$('sens').value, thr=Math.max(floor*4, 0.002+ (100-sens)/100*0.08);
+  const now=ac.currentTime;
+  if(!waiting && rms>thr && now-hitAt>0.6){waiting=true;hitAt=now}
+  if(waiting && now-hitAt>0.45){
+    waiting=false;
+    analyser.getFloatTimeDomainData(buf);
+    const sr=ac.sampleRate, elapsed=Math.round((ac.currentTime-hitAt)*sr);
+    const start=Math.max(0,buf.length-elapsed-1024+Math.round(0.03*sr));
+    const seg=buf.subarray(start,Math.min(buf.length,start+Math.round(0.4*sr)));
+    if(seg.length>2048){
+      const res=analyze(seg,sr);
+      lastFreq=res.freq;showResult(res.freq);drawSpectrum(res);recordLug(res.freq);
+    }
+  }
+  if(!waiting) floor=floor*0.98+rms*0.02;
+  requestAnimationFrame(loop);
+}
+
+applyDrum();
+</script>
+</body>
+</html>
