@@ -37,16 +37,92 @@ td,th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right}
 th{color:var(--sub);font-weight:500}
 td:first-child,th:first-child{text-align:left}
 .full{grid-column:1/-1}
+.card h2{display:flex;align-items:center;justify-content:space-between}
+.qbtn{width:26px;height:26px;padding:0;border-radius:50%;font-size:13px;font-weight:700;color:var(--sub)}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:0;width:min(640px,calc(100vw - 24px));max-height:85vh;overflow:auto}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+.help-head{position:sticky;top:0;background:var(--panel);display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.help-head h2{margin:0;font-size:17px}
+.help-body{padding:4px 16px 20px;font-size:14px;line-height:1.7}
+.help-body h3{scroll-margin-top:60px;font-size:15px;margin:20px 0 6px;color:var(--accent)}
+.help-body dl{margin:0}
+.help-body dt{font-weight:700;margin-top:8px}
+.help-body dd{margin:0 0 0 1em;color:#c8ccd2}
+.help-body ol{padding-left:1.4em;margin:6px 0}
+.sw{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:4px}
 </style>
 </head>
 <body>
 <header>
   <h1>🥁 Drum Tuner</h1>
+  <button id="helpBtn">？ ヘルプ</button>
   <button id="micBtn" class="primary">マイク開始</button>
 </header>
+<dialog id="help">
+  <div class="help-head"><h2>ヘルプ</h2><button id="helpClose">閉じる</button></div>
+  <div class="help-body">
+    <h3 id="h-flow">基本の流れ</h3>
+    <ol>
+      <li>「マイク開始」を押してマイクを許可する</li>
+      <li>「ドラム」で調整するドラムを選ぶ</li>
+      <li>必要なら「目標」に合わせたい音程を入れる</li>
+      <li>打面を1回叩く → 約0.5秒後に結果が出る</li>
+      <li>表示に従ってチューニングキーを回し、また叩く</li>
+    </ol>
+
+    <h3 id="h-settings">設定</h3>
+    <dl>
+      <dt>ドラム</dt><dd>ドラムの種類を選ぶと、そのドラムで出やすい音程の範囲が自動で入ります。設定と記録はドラムごとに別々に保存されます。「ラグ際タップ」は各ラグの手前を叩いて合わせる用、「カスタム」は範囲を自由に決めたいとき用です。</dd>
+      <dt>検出範囲</dt><dd>この範囲の中で一番強い音を「音程」として拾います。倍音（本来より高い音）や低いうなりを拾ってしまうときは、範囲を狭めてください。</dd>
+      <dt>目標</dt><dd>合わせたい音程をHz（ヘルツ）で入れます。右の「音名から…」で G2、A2 などの音名から選ぶこともできます。空欄でもOKです。</dd>
+      <dt>基準音</dt><dd>目標の音程（目標が空なら最後に測った音程）を「ポー」という音で鳴らします。耳で合わせたいときに使います。もう一度押すと止まります。</dd>
+      <dt>感度 ／ 緑のバー</dt><dd>緑のバーは今マイクに入っている音量です。叩いても反応しないときは感度を上げ、叩いていないのに反応するときは下げてください。</dd>
+    </dl>
+
+    <h3 id="h-result">測定結果</h3>
+    <dl>
+      <dt>大きな数字（Hz）</dt><dd>叩いた音の高さです。数字が大きいほど高い音です。</dd>
+      <dt>音名と cent</dt><dd>一番近い音名と、そこからのずれです。cent（セント）は半音を100に分けた単位で、±5以内ならほぼぴったりです。</dd>
+      <dt>メーター</dt><dd>真ん中の線が目標（目標が空なら一番近い音名）です。左に寄ると低い、右に寄ると高い。
+        <span class="sw" style="background:var(--ok)"></span>ぴったり
+        <span class="sw" style="background:var(--warn)"></span>少しずれ
+        <span class="sw" style="background:var(--bad)"></span>大きくずれ</dd>
+      <dt>締める ／ 緩める</dt><dd>低いときはチューニングキーを時計回り（締める）、高いときは反時計回り（緩める）に回します。</dd>
+    </dl>
+
+    <h3 id="h-lugs">ラグごとのチューニング</h3>
+    <p>ラグ（チューニングボルト）ごとの音程をそろえると、ヘッド全体の張りが均一になり、音がきれいに伸びます。</p>
+    <dl>
+      <dt>ラグ数</dt><dd>ドラムのボルトの本数に合わせます。</dd>
+      <dt>ヒットをラグに記録</dt><dd>オンにすると、叩くたびに白い枠で選ばれているラグに値を記録します。全体の音程だけ見たいときはオフにします。</dd>
+      <dt>対角順に進む</dt><dd>記録後、次は向かい側のラグへ自動で移ります（チューニングの定番の順番）。オフだと時計回りに進みます。</dd>
+      <dt>ラグの丸をクリック</dt><dd>そのラグを選び直せます。測り直したいときに使います。</dd>
+      <dt>丸の色と中央の「基準」</dt><dd>基準は目標値、目標が空ならラグの平均です。
+        <span class="sw" style="background:var(--ok)"></span>そろっている
+        <span class="sw" style="background:var(--warn)"></span>少しずれ
+        <span class="sw" style="background:var(--bad)"></span>大きくずれ</dd>
+      <dt>叩き方</dt><dd>各ラグの手前（フチから2〜3cm内側）を、スティックで軽く同じ強さで叩きます。反対側のヘッドは手で軽く押さえてミュートすると測りやすくなります。</dd>
+    </dl>
+
+    <h3 id="h-table">ラグ一覧</h3>
+    <dl>
+      <dt>差(Hz) ／ 差(cent)</dt><dd>基準とのずれです。マイナスは低い、プラスは高い。</dd>
+      <dt>▲ ／ ▼ ／ ✓</dt><dd>▲＝そのラグを締める、▼＝緩める、✓＝そろっている。</dd>
+    </dl>
+
+    <h3 id="h-spec">スペクトル</h3>
+    <p>叩いた音にどの高さの成分がどれだけ含まれているかのグラフです。横が音の高さ（右ほど高い）、山が高いほどその音が強く出ています。</p>
+    <dl>
+      <dt>青い帯</dt><dd>検出範囲です。</dd>
+      <dt>緑の縦線</dt><dd>今回「音程」として拾った位置です。</dd>
+      <dt>黄色の点線</dt><dd>目標の位置です。</dd>
+    </dl>
+    <p>緑の線が明らかに違う山に立っているときは、検出範囲を調整してください。</p>
+  </div>
+</dialog>
 <main>
   <section class="card">
-    <h2>設定</h2>
+    <h2>設定 <button class="qbtn" data-h="h-settings" aria-label="設定のヘルプ">?</button></h2>
     <div class="row">
       <label>ドラム</label>
       <select id="drum"></select>
@@ -71,7 +147,7 @@ td:first-child,th:first-child{text-align:left}
   </section>
 
   <section class="card">
-    <h2>測定結果</h2>
+    <h2>測定結果 <button class="qbtn" data-h="h-result" aria-label="測定結果のヘルプ">?</button></h2>
     <div class="big" id="freq">--- <small style="font-size:22px">Hz</small></div>
     <div class="note" id="noteName">&nbsp;</div>
     <div class="meter"><div class="center"></div><div class="needle" id="needle"></div></div>
@@ -79,7 +155,7 @@ td:first-child,th:first-child{text-align:left}
   </section>
 
   <section class="card">
-    <h2>ラグごとのチューニング</h2>
+    <h2>ラグごとのチューニング <button class="qbtn" data-h="h-lugs" aria-label="ラグのヘルプ">?</button></h2>
     <div class="row">
       <label>ラグ数</label>
       <select id="lugCount"><option>4</option><option>5</option><option selected>6</option><option>8</option><option>10</option><option>12</option></select>
@@ -92,13 +168,13 @@ td:first-child,th:first-child{text-align:left}
   </section>
 
   <section class="card">
-    <h2>ラグ一覧</h2>
+    <h2>ラグ一覧 <button class="qbtn" data-h="h-table" aria-label="ラグ一覧のヘルプ">?</button></h2>
     <table id="lugTable"></table>
     <div class="hint">基準＝目標値（未設定ならラグ平均）。▲＝締める ▼＝緩める</div>
   </section>
 
   <section class="card full">
-    <h2>スペクトル</h2>
+    <h2>スペクトル <button class="qbtn" data-h="h-spec" aria-label="スペクトルのヘルプ">?</button></h2>
     <canvas id="spec" width="960" height="160"></canvas>
   </section>
 </main>
@@ -326,6 +402,14 @@ function loop(){
   if(!waiting) floor=floor*0.98+rms*0.02;
   requestAnimationFrame(loop);
 }
+
+// ---------- Help ----------
+function openHelp(id){const d=$("help");d.showModal();const el=id&&document.getElementById(id);if(el)el.scrollIntoView({block:"start"});else d.querySelector(".help-body").scrollTop=0}
+$("helpBtn").onclick=()=>openHelp("h-flow");
+$("helpClose").onclick=()=>$("help").close();
+$("help").addEventListener("click",e=>{if(e.target===$("help"))$("help").close()});
+document.querySelectorAll(".qbtn").forEach(b=>b.onclick=()=>openHelp(b.dataset.h));
+if(!store.get("seenHelp",false)){store.set("seenHelp",true);openHelp("h-flow")}
 
 applyDrum();
 </script>
