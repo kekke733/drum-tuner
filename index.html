@@ -100,7 +100,8 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <dt>対角順に進む</dt><dd>記録後、次は向かい側のラグへ自動で移ります（チューニングの定番の順番）。オフだと時計回りに進みます。</dd>
       <dt>丸をクリック</dt><dd>そのラグ（または中央）を選び直せます。測り直したいときに使います。</dd>
       <dt>中央</dt><dd>全部のラグを一周すると、自動で「中央」が選ばれます。打面の中央を叩くと、ドラム全体の音程として記録されます。中央の丸の色は目標値とのずれ（目標が空なら青）で、ラグの基準とは比べません（中央の音はラグ際より低く出るのが普通のため）。</dd>
-      <dt>ラグの丸の色</dt><dd>測ったラグの平均と比べた、各ラグのずれです。ラグ際を叩いた音は中央より高く出るので、目標値とは比べません。
+      <dt>ラグの基準</dt><dd>ラグを何と比べるかを選びます。<br>・ラグ平均：測ったラグ同士の平均と比べ、ラグ同士がそろっているかを見ます（通常はこちら。ラグ際の音は中央より高く出るため）。<br>・目標：目標欄の値と比べます。ラグ際の音程で目標を決めているときに使います。目標が空のときはラグ平均になります。</dd>
+      <dt>ラグの丸の色</dt><dd>「ラグの基準」と比べた、各ラグのずれです。
 <br><span class="sw" style="background:var(--ok)"></span>そろっている（±8cent以内）
         <br><span class="sw" style="background:var(--hi1)"></span><span class="sw" style="background:var(--hi2)"></span>基準より高い → 緩める（濃いほど大きくずれ）
         <br><span class="sw" style="background:var(--lo1)"></span><span class="sw" style="background:var(--lo2)"></span>基準より低い → 締める（濃いほど大きくずれ）</dd>
@@ -109,7 +110,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 
     <h3 id="h-table">ラグ一覧</h3>
     <dl>
-      <dt>差(Hz) ／ 差(cent)</dt><dd>ラグ平均とのずれです。マイナスは低い、プラスは高い。一番下の「中央」の行は、目標値とのずれと音名を表示します。</dd>
+      <dt>差(Hz) ／ 差(cent)</dt><dd>「ラグの基準」とのずれです。マイナスは低い、プラスは高い。一番下の「中央」の行は、目標値とのずれと音名を表示します。</dd>
       <dt>▲ ／ ▼ ／ ✓</dt><dd>▲＝そのラグを締める、▼＝緩める、✓＝そろっている。</dd>
     </dl>
 
@@ -170,6 +171,10 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <label><input type="checkbox" id="star" checked> 対角順に進む</label>
       <button id="clearLugs">クリア</button>
     </div>
+    <div class="row">
+      <label>ラグの基準</label>
+      <select id="lugRefMode"><option value="avg">ラグ平均</option><option value="target">目標</option></select>
+    </div>
     <div class="hint" id="lugRef" style="text-align:center;margin:0 0 6px"></div>
     <svg id="lugSvg" viewBox="0 0 260 260" style="width:100%;max-width:300px;display:block;margin:0 auto"></svg>
     <div class="hint" id="lugHint"></div>
@@ -178,7 +183,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <section class="card">
     <h2>ラグ一覧 <button class="qbtn" data-h="h-table" aria-label="ラグ一覧のヘルプ">?</button></h2>
     <table id="lugTable"></table>
-    <div class="hint">ラグはラグ平均と、中央は目標値と比べます。▲＝締める ▼＝緩める</div>
+    <div class="hint">ラグは「ラグの基準」で選んだ値と、中央は目標値と比べます。▲＝締める ▼＝緩める</div>
   </section>
 
   <section class="card full">
@@ -250,6 +255,8 @@ $('targetNote').onchange = e => {
   setTarget(m===''?'':midiToHz(+m).toFixed(1));
 };
 $('lugCount').value = state.lugCount;
+$('lugRefMode').value = state.lugRefMode || 'avg';
+$('lugRefMode').onchange = e => {state.lugRefMode=e.target.value; save(); renderLugs()};
 $('lugCount').onchange = e => {state.lugCount=+e.target.value; selected=0; save(); renderLugs()};
 $('clearLugs').onclick = () => {state.lugs[lugsKey()]=[]; (state.centers||={})[state.drum]=null; selected=0; save(); renderLugs()};
 
@@ -298,7 +305,9 @@ function lugOrder(n){
   return o;
 }
 // ラグ際の音は中央より高く出るので、ラグ同士の平均と比べる（目標値は中央用）
+function useTargetForLugs(){return state.lugRefMode==='target' && !!target()}
 function lugRef(){
+  if(useTargetForLugs()) return target();
   const v=curLugs().slice(0,state.lugCount).filter(Boolean);
   return v.length? v.reduce((a,b)=>a+b,0)/v.length : null;
 }
@@ -330,7 +339,9 @@ function renderLugs(){
   $('lugHint').textContent = selected===-1
     ? '打面の中央を叩いてください。丸をクリックで選び直せます。'
     : `ラグ ${selected+1} の近く（端から2〜3cm）を叩いてください。丸をクリックで選び直せます。`;
-  $('lugRef').textContent = ref ? `ラグ平均: ${ref.toFixed(1)} Hz` : '';
+  $('lugRef').textContent = useTargetForLugs() ? `ラグの基準: 目標 ${ref.toFixed(1)} Hz`
+    : state.lugRefMode==='target' ? `目標が空なので、ラグ平均と比べています${ref?`（${ref.toFixed(1)} Hz）`:''}`
+    : ref ? `ラグの基準: ラグ平均 ${ref.toFixed(1)} Hz` : '';
   let t='<tr><th>ラグ</th><th>Hz</th><th>差(Hz)</th><th>差(cent)</th><th></th></tr>';
   for(let i=0;i<n;i++){
     const f=lugs[i]; if(!f){t+=`<tr><td>${i+1}</td><td>—</td><td></td><td></td><td></td></tr>`;continue}
