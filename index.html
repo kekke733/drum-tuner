@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Drum Tuner</title>
 <style>
-:root{--bg:#14161a;--panel:#1d2026;--line:#2c3038;--text:#e8eaed;--sub:#9aa0a8;--accent:#4fb3ff;--ok:#3ecf7a;--warn:#f2c14e;--bad:#ef5b5b}
+:root{--hi1:#f59a9a;--hi2:#ff5c5c;--lo1:#8fc2ff;--lo2:#4d8dff;--bg:#14161a;--panel:#1d2026;--line:#2c3038;--text:#e8eaed;--sub:#9aa0a8;--accent:#4fb3ff;--ok:#3ecf7a;--warn:#f2c14e;--bad:#ef5b5b}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif}
 header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -74,9 +74,9 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     <dl>
       <dt>ドラム</dt><dd>ドラムの種類を選ぶと、そのドラムで出やすい音程の範囲が自動で入ります。設定と記録はドラムごとに別々に保存されます。「ラグ際タップ」は各ラグの手前を叩いて合わせる用、「カスタム」は範囲を自由に決めたいとき用です。</dd>
       <dt>検出範囲</dt><dd>この範囲の中で一番強い音を「音程」として拾います。倍音（本来より高い音）や低いうなりを拾ってしまうときは、範囲を狭めてください。</dd>
-      <dt>目標</dt><dd>合わせたい音程をHz（ヘルツ）で入れます。右の「音名から…」で G2、A2 などの音名から選ぶこともできます。空欄でもOKです。</dd>
+      <dt>目標</dt><dd>合わせたい音程をHz（ヘルツ）で入れます。右のリストで G2、A2 などの音名から選ぶこともできます。選んだ音名はリストに表示されたままになり、Hzを手で書き換えると「音名から…」に戻ります。空欄でもOKです。</dd>
       <dt>基準音</dt><dd>目標の音程（目標が空なら最後に測った音程）を「ポー」という音で鳴らします。耳で合わせたいときに使います。もう一度押すと止まります。</dd>
-      <dt>基準ピッチ</dt><dd>音名を決めるときの基準（ラの音 A4 の高さ）です。通常は440Hz。日本の吹奏楽やオーケストラでは442Hzが多いので、一緒に演奏する楽器に合わせてください。変えても測ったHzの数字は変わらず、音名・cent表示と「音名から…」の値だけが変わります。目標欄にすでに入っている数字は自動では変わらないので、音名から選び直してください。</dd>
+      <dt>基準ピッチ</dt><dd>音名を決めるときの基準（ラの音 A4 の高さ）です。通常は440Hz。日本の吹奏楽やオーケストラでは442Hzが多いので、一緒に演奏する楽器に合わせてください。変えても測ったHzの数字は変わらず、音名・cent表示と「音名から…」の値だけが変わります。音名から選んだ目標は、新しい基準ピッチで自動的に計算し直されます（手入力したHzはそのまま）。</dd>
       <dt>感度 ／ 緑のバー</dt><dd>緑のバーは今マイクに入っている音量です。叩いても反応しないときは感度を上げ、叩いていないのに反応するときは下げてください。</dd>
     </dl>
 
@@ -99,9 +99,9 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <dt>対角順に進む</dt><dd>記録後、次は向かい側のラグへ自動で移ります（チューニングの定番の順番）。オフだと時計回りに進みます。</dd>
       <dt>ラグの丸をクリック</dt><dd>そのラグを選び直せます。測り直したいときに使います。</dd>
       <dt>丸の色と中央の「基準」</dt><dd>基準は目標値、目標が空ならラグの平均です。
-        <span class="sw" style="background:var(--ok)"></span>そろっている
-        <span class="sw" style="background:var(--warn)"></span>少しずれ
-        <span class="sw" style="background:var(--bad)"></span>大きくずれ</dd>
+<br><span class="sw" style="background:var(--ok)"></span>そろっている（±8cent以内）
+        <br><span class="sw" style="background:var(--hi1)"></span><span class="sw" style="background:var(--hi2)"></span>基準より高い → 緩める（濃いほど大きくずれ）
+        <br><span class="sw" style="background:var(--lo1)"></span><span class="sw" style="background:var(--lo2)"></span>基準より低い → 締める（濃いほど大きくずれ）</dd>
       <dt>叩き方</dt><dd>各ラグの手前（フチから2〜3cm内側）を、スティックで軽く同じ強さで叩きます。反対側のヘッドは手で軽く押さえてミュートすると測りやすくなります。</dd>
     </dl>
 
@@ -206,8 +206,9 @@ const store = {
 // ---------- UI setup ----------
 for (const [k,d] of Object.entries(DRUMS)) $('drum').add(new Option(d.name,k));
 function buildNoteOptions(){
-  const sel=$('targetNote'); sel.length=1;
+  const sel=$('targetNote'), keep=sel.value; sel.length=1;
   for (let m=28;m<=84;m++) sel.add(new Option(NOTES[m%12]+(Math.floor(m/12)-1)+'  ('+midiToHz(m).toFixed(1)+' Hz)', m));
+  sel.value=keep;
 }
 for (let a=436;a<=446;a++) $('a4').add(new Option(a, a));
 
@@ -215,7 +216,12 @@ let state = store.get('state', {drum:'tom12', target:'', lugCount:6, lugs:{}});
 state.a4 ||= 440;
 $('a4').value = state.a4;
 buildNoteOptions();
-$('a4').onchange = e => {state.a4=+e.target.value; save(); buildNoteOptions(); showResult(lastFreq)};
+$('a4').onchange = e => {
+  state.a4=+e.target.value;
+  // 音名で選んだ目標は新しい基準ピッチで計算し直す
+  for(const [d,m] of Object.entries(state.notes||{})) if(m!=='') (state.targets||={})[d]=midiToHz(+m).toFixed(1);
+  save(); buildNoteOptions(); applyDrum(); showResult(lastFreq);
+};
 function A4(){return state.a4||440}
 function lugsKey(){return state.drum}
 function curLugs(){return state.lugs[lugsKey()] ||= []}
@@ -227,16 +233,18 @@ function applyDrum(){
   $('fmin').value = state.fmin?.[state.drum] ?? d.min;
   $('fmax').value = state.fmax?.[state.drum] ?? d.max;
   $('target').value = state.targets?.[state.drum] ?? '';
+  $('targetNote').value = state.notes?.[state.drum] ?? '';
   renderLugs();
 }
 $('drum').onchange = e => {state.drum=e.target.value; selected=0; save(); applyDrum()};
 $('fmin').onchange = e => {(state.fmin||={})[state.drum]=+e.target.value; save()};
 $('fmax').onchange = e => {(state.fmax||={})[state.drum]=+e.target.value; save()};
-$('target').oninput = e => {(state.targets||={})[state.drum]=e.target.value; save(); renderLugs(); showResult(lastFreq)};
+function setTarget(v){(state.targets||={})[state.drum]=v; $('target').value=v; save(); renderLugs(); showResult(lastFreq)}
+// 手入力したら音名の選択は外す
+$('target').oninput = e => {(state.notes||={})[state.drum]=''; $('targetNote').value=''; setTarget(e.target.value)};
 $('targetNote').onchange = e => {
-  if(e.target.value==='')return;
-  $('target').value = midiToHz(+e.target.value).toFixed(1);
-  $('target').oninput({target:$('target')}); e.target.value='';
+  const m=e.target.value; (state.notes||={})[state.drum]=m;
+  setTarget(m===''?'':midiToHz(+m).toFixed(1));
 };
 $('lugCount').value = state.lugCount;
 $('lugCount').onchange = e => {state.lugCount=+e.target.value; selected=0; save(); renderLugs()};
@@ -291,7 +299,12 @@ function lugRef(){
   const v=curLugs().slice(0,state.lugCount).filter(Boolean);
   return v.length? v.reduce((a,b)=>a+b,0)/v.length : null;
 }
-function colorFor(c){return Math.abs(c)<8?'var(--ok)':Math.abs(c)<20?'var(--warn)':'var(--bad)'}
+// ±8cent以内=緑、高い=赤系、低い=青系（20cent以上ずれると濃い色）
+function colorFor(c){
+  if(Math.abs(c)<8)return 'var(--ok)';
+  if(c>0)return c<20?'var(--hi1)':'var(--hi2)';
+  return c>-20?'var(--lo1)':'var(--lo2)';
+}
 function renderLugs(){
   const n=state.lugCount, lugs=curLugs(), ref=lugRef(), svg=$('lugSvg');
   let s=`<circle cx="130" cy="130" r="95" fill="#262a31" stroke="#3a3f48" stroke-width="6"/>`;
