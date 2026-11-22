@@ -76,6 +76,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <dt>検出範囲</dt><dd>この範囲の中で一番強い音を「音程」として拾います。倍音（本来より高い音）や低いうなりを拾ってしまうときは、範囲を狭めてください。</dd>
       <dt>目標</dt><dd>合わせたい音程をHz（ヘルツ）で入れます。右の「音名から…」で G2、A2 などの音名から選ぶこともできます。空欄でもOKです。</dd>
       <dt>基準音</dt><dd>目標の音程（目標が空なら最後に測った音程）を「ポー」という音で鳴らします。耳で合わせたいときに使います。もう一度押すと止まります。</dd>
+      <dt>基準ピッチ</dt><dd>音名を決めるときの基準（ラの音 A4 の高さ）です。通常は440Hz。日本の吹奏楽やオーケストラでは442Hzが多いので、一緒に演奏する楽器に合わせてください。変えても測ったHzの数字は変わらず、音名・cent表示と「音名から…」の値だけが変わります。目標欄にすでに入っている数字は自動では変わらないので、音名から選び直してください。</dd>
       <dt>感度 ／ 緑のバー</dt><dd>緑のバーは今マイクに入っている音量です。叩いても反応しないときは感度を上げ、叩いていないのに反応するときは下げてください。</dd>
     </dl>
 
@@ -139,6 +140,10 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <button id="toneBtn">基準音</button>
     </div>
     <div class="row">
+      <label>基準ピッチ A4 =</label>
+      <select id="a4"></select> Hz
+    </div>
+    <div class="row">
       <label>感度</label>
       <input id="sens" type="range" min="1" max="100" value="60">
     </div>
@@ -200,9 +205,18 @@ const store = {
 
 // ---------- UI setup ----------
 for (const [k,d] of Object.entries(DRUMS)) $('drum').add(new Option(d.name,k));
-for (let m=28;m<=84;m++) $('targetNote').add(new Option(NOTES[m%12]+(Math.floor(m/12)-1)+'  ('+midiToHz(m).toFixed(1)+' Hz)', m));
+function buildNoteOptions(){
+  const sel=$('targetNote'); sel.length=1;
+  for (let m=28;m<=84;m++) sel.add(new Option(NOTES[m%12]+(Math.floor(m/12)-1)+'  ('+midiToHz(m).toFixed(1)+' Hz)', m));
+}
+for (let a=436;a<=446;a++) $('a4').add(new Option(a, a));
 
 let state = store.get('state', {drum:'tom12', target:'', lugCount:6, lugs:{}});
+state.a4 ||= 440;
+$('a4').value = state.a4;
+buildNoteOptions();
+$('a4').onchange = e => {state.a4=+e.target.value; save(); buildNoteOptions(); showResult(lastFreq)};
+function A4(){return state.a4||440}
 function lugsKey(){return state.drum}
 function curLugs(){return state.lugs[lugsKey()] ||= []}
 function save(){store.set('state',state)}
@@ -228,9 +242,9 @@ $('lugCount').value = state.lugCount;
 $('lugCount').onchange = e => {state.lugCount=+e.target.value; selected=0; save(); renderLugs()};
 $('clearLugs').onclick = () => {state.lugs[lugsKey()]=[]; selected=0; save(); renderLugs()};
 
-function midiToHz(m){return 440*Math.pow(2,(m-69)/12)}
+function midiToHz(m){return A4()*Math.pow(2,(m-69)/12)}
 function hzToNote(f){
-  const m = 69+12*Math.log2(f/440), r = Math.round(m);
+  const m = 69+12*Math.log2(f/A4()), r = Math.round(m);
   return {name:NOTES[(r%12+12)%12]+(Math.floor(r/12)-1), cents:(m-r)*100};
 }
 function cents(f,ref){return 1200*Math.log2(f/ref)}
