@@ -36,6 +36,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:ta
 td,th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right}
 th{color:var(--sub);font-weight:500}
 td:first-child,th:first-child{text-align:left}
+tr.center-row td{border-top:2px solid var(--line);font-weight:600}
 .full{grid-column:1/-1}
 .card h2{display:flex;align-items:center;justify-content:space-between}
 .qbtn{width:26px;height:26px;padding:0;border-radius:50%;font-size:13px;font-weight:700;color:var(--sub)}
@@ -97,8 +98,9 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <dt>ラグ数</dt><dd>ドラムのボルトの本数に合わせます。</dd>
       <dt>ヒットをラグに記録</dt><dd>オンにすると、叩くたびに白い枠で選ばれているラグに値を記録します。全体の音程だけ見たいときはオフにします。</dd>
       <dt>対角順に進む</dt><dd>記録後、次は向かい側のラグへ自動で移ります（チューニングの定番の順番）。オフだと時計回りに進みます。</dd>
-      <dt>ラグの丸をクリック</dt><dd>そのラグを選び直せます。測り直したいときに使います。</dd>
-      <dt>丸の色と中央の「基準」</dt><dd>基準は目標値、目標が空ならラグの平均です。
+      <dt>丸をクリック</dt><dd>そのラグ（または中央）を選び直せます。測り直したいときに使います。</dd>
+      <dt>中央</dt><dd>全部のラグを一周すると、自動で「中央」が選ばれます。打面の中央を叩くと、ドラム全体の音程として記録されます。中央の丸の色は目標値とのずれ（目標が空なら青）で、ラグの基準とは比べません（中央の音はラグ際より低く出るのが普通のため）。</dd>
+      <dt>ラグの丸の色</dt><dd>測ったラグの平均と比べた、各ラグのずれです。ラグ際を叩いた音は中央より高く出るので、目標値とは比べません。
 <br><span class="sw" style="background:var(--ok)"></span>そろっている（±8cent以内）
         <br><span class="sw" style="background:var(--hi1)"></span><span class="sw" style="background:var(--hi2)"></span>基準より高い → 緩める（濃いほど大きくずれ）
         <br><span class="sw" style="background:var(--lo1)"></span><span class="sw" style="background:var(--lo2)"></span>基準より低い → 締める（濃いほど大きくずれ）</dd>
@@ -107,7 +109,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 
     <h3 id="h-table">ラグ一覧</h3>
     <dl>
-      <dt>差(Hz) ／ 差(cent)</dt><dd>基準とのずれです。マイナスは低い、プラスは高い。</dd>
+      <dt>差(Hz) ／ 差(cent)</dt><dd>ラグ平均とのずれです。マイナスは低い、プラスは高い。一番下の「中央」の行は、目標値とのずれと音名を表示します。</dd>
       <dt>▲ ／ ▼ ／ ✓</dt><dd>▲＝そのラグを締める、▼＝緩める、✓＝そろっている。</dd>
     </dl>
 
@@ -168,6 +170,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <label><input type="checkbox" id="star" checked> 対角順に進む</label>
       <button id="clearLugs">クリア</button>
     </div>
+    <div class="hint" id="lugRef" style="text-align:center;margin:0 0 6px"></div>
     <svg id="lugSvg" viewBox="0 0 260 260" style="width:100%;max-width:300px;display:block;margin:0 auto"></svg>
     <div class="hint" id="lugHint"></div>
   </section>
@@ -175,7 +178,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <section class="card">
     <h2>ラグ一覧 <button class="qbtn" data-h="h-table" aria-label="ラグ一覧のヘルプ">?</button></h2>
     <table id="lugTable"></table>
-    <div class="hint">基準＝目標値（未設定ならラグ平均）。▲＝締める ▼＝緩める</div>
+    <div class="hint">ラグはラグ平均と、中央は目標値と比べます。▲＝締める ▼＝緩める</div>
   </section>
 
   <section class="card full">
@@ -248,7 +251,7 @@ $('targetNote').onchange = e => {
 };
 $('lugCount').value = state.lugCount;
 $('lugCount').onchange = e => {state.lugCount=+e.target.value; selected=0; save(); renderLugs()};
-$('clearLugs').onclick = () => {state.lugs[lugsKey()]=[]; selected=0; save(); renderLugs()};
+$('clearLugs').onclick = () => {state.lugs[lugsKey()]=[]; (state.centers||={})[state.drum]=null; selected=0; save(); renderLugs()};
 
 function midiToHz(m){return A4()*Math.pow(2,(m-69)/12)}
 function hzToNote(f){
@@ -279,7 +282,7 @@ function showResult(f){
 }
 
 // ---------- Lug view ----------
-let selected = 0;
+let selected = 0; // -1 = 中央
 function lugOrder(n){
   // 対角（スター）順：直前のラグから最も遠い未測定ラグへ進む
   const dist=(a,b)=>{const d=Math.abs(a-b)%n;return Math.min(d,n-d)};
@@ -294,8 +297,8 @@ function lugOrder(n){
   }
   return o;
 }
+// ラグ際の音は中央より高く出るので、ラグ同士の平均と比べる（目標値は中央用）
 function lugRef(){
-  const t=target(); if(t)return t;
   const v=curLugs().slice(0,state.lugCount).filter(Boolean);
   return v.length? v.reduce((a,b)=>a+b,0)/v.length : null;
 }
@@ -316,10 +319,18 @@ function renderLugs(){
         <text x="${x}" y="${y}" style="fill:${f?'#111':'#ccc'};font-weight:700">${i+1}</text></g>`;
     if(f){const ix=130+70*Math.cos(a), iy=130+70*Math.sin(a);s+=`<text x="${ix}" y="${iy}">${f.toFixed(0)}</text>`}
   }
-  if(ref)s+=`<text x="130" y="122" style="fill:var(--sub)">基準</text><text x="130" y="140" style="font-size:16px;font-weight:700">${ref.toFixed(1)} Hz</text>`;
+  // 中央
+  const cf=state.centers?.[state.drum], tg=target();
+  const cfill=cf?(tg?colorFor(cents(cf,tg)):'var(--accent)'):'#2c3038';
+  s+=`<g class="lug" data-i="-1"><circle cx="130" cy="130" r="32" fill="${cfill}" stroke="${selected===-1?'#fff':'none'}" stroke-width="3"/>
+      <text x="130" y="${cf?121:130}" style="fill:${cf?'#111':'#ccc'};font-weight:700">中央</text>
+      ${cf?`<text x="130" y="139" style="fill:#111;font-weight:700;font-size:12px">${cf.toFixed(1)}</text>`:''}</g>`;
   svg.innerHTML=s;
   svg.querySelectorAll('.lug').forEach(g=>g.onclick=()=>{selected=+g.dataset.i;renderLugs()});
-  $('lugHint').textContent=`ラグ ${selected+1} の近く（端から2〜3cm）を叩いてください。ラグをクリックで選択。`;
+  $('lugHint').textContent = selected===-1
+    ? '打面の中央を叩いてください。丸をクリックで選び直せます。'
+    : `ラグ ${selected+1} の近く（端から2〜3cm）を叩いてください。丸をクリックで選び直せます。`;
+  $('lugRef').textContent = ref ? `ラグ平均: ${ref.toFixed(1)} Hz` : '';
   let t='<tr><th>ラグ</th><th>Hz</th><th>差(Hz)</th><th>差(cent)</th><th></th></tr>';
   for(let i=0;i<n;i++){
     const f=lugs[i]; if(!f){t+=`<tr><td>${i+1}</td><td>—</td><td></td><td></td><td></td></tr>`;continue}
@@ -327,14 +338,22 @@ function renderLugs(){
     const mark=Math.abs(c)<8?'✓':c<0?'▲':'▼';
     t+=`<tr><td>${i+1}</td><td>${f.toFixed(1)}</td><td>${(d>=0?'+':'')+d.toFixed(1)}</td><td style="color:${colorFor(c)}">${(c>=0?'+':'')+c.toFixed(0)}</td><td>${mark}</td></tr>`;
   }
+  if(cf){
+    const n2=hzToNote(cf);
+    if(tg){const d=cf-tg,c=cents(cf,tg),mark=Math.abs(c)<8?'✓':c<0?'▲':'▼';
+      t+=`<tr class="center-row"><td>中央</td><td>${cf.toFixed(1)} (${n2.name})</td><td>${(d>=0?'+':'')+d.toFixed(1)}</td><td style="color:${colorFor(c)}">${(c>=0?'+':'')+c.toFixed(0)}</td><td>${mark}</td></tr>`;}
+    else t+=`<tr class="center-row"><td>中央</td><td>${cf.toFixed(1)} (${n2.name})</td><td colspan="3" style="color:var(--sub)">目標なし</td></tr>`;
+  } else t+=`<tr class="center-row"><td>中央</td><td>—</td><td></td><td></td><td></td></tr>`;
   $('lugTable').innerHTML=t;
 }
 function recordLug(f){
   if(!$('lugRec').checked)return;
+  if(selected===-1){ (state.centers||={})[state.drum]=f; save(); renderLugs(); return }
   const lugs=curLugs(); lugs[selected]=f; save();
   const n=state.lugCount;
-  if($('star').checked){const o=lugOrder(n);selected=o[(o.indexOf(selected)+1)%n]}
-  else selected=(selected+1)%n;
+  // 一周したら中央へ
+  if($('star').checked){const o=lugOrder(n),k=o.indexOf(selected);selected=k===n-1?-1:o[k+1]}
+  else selected=selected===n-1?-1:selected+1;
   renderLugs();
 }
 
