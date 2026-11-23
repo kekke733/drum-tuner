@@ -43,7 +43,7 @@ button:disabled{opacity:.35;cursor:default}
 .chip{border-radius:999px;padding:9px 16px;font-size:14px}
 #targetChip{border-color:var(--accent)}
 .lugs-area{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:12px 12px 14px}
-#lugSvg{width:100%;max-width:320px;display:block;margin:0 auto}
+#lugSvg{width:100%;max-width:290px;display:block;margin:0 auto}
 #lugHint{text-align:center;font-size:14px;color:var(--text);margin-top:6px;line-height:1.5}
 .lug-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
 .lug-tools #lugRef{flex:1;text-align:center;font-size:12px;margin:0;min-height:0}
@@ -98,7 +98,12 @@ tr.center-row td{border-top:2px solid var(--line);font-weight:600}
 .iv-row{display:flex;justify-content:space-between;font-size:14px;font-variant-numeric:tabular-nums;padding:2px 0}
 .iv-row small{color:var(--sub);font-weight:400}
 .iv-result{margin-top:8px;font-size:17px;font-weight:700;color:var(--accent)}
-canvas{width:100%;height:140px;display:block;background:#15171b;border-radius:10px}
+canvas{width:100%;height:170px;display:block;background:#15171b;border-radius:10px}
+#spec{cursor:pointer;touch-action:manipulation}
+#miniSpec{height:44px;margin-top:10px;cursor:pointer;border-radius:8px}
+.quality{display:flex;justify-content:center;gap:6px 14px;flex-wrap:wrap;font-size:13px;color:var(--sub);margin-top:8px;min-height:1.2em}
+.quality b{color:var(--text);font-weight:600}
+.quality .warn b,b.warn{color:var(--warn)}
 .help-body{padding:4px 16px 20px;font-size:14px;line-height:1.7}
 .help-body h3{scroll-margin-top:60px;font-size:15px;margin:20px 0 6px;color:var(--accent)}
 .help-body dl{margin:0}
@@ -193,13 +198,22 @@ canvas{width:100%;height:140px;display:block;background:#15171b;border-radius:10
     <p>ネットにつながっているときは、開くたびに最新版を読み込みます。</p>
 
     <h3 id="h-spec">スペクトル</h3>
-    <p>「≡ 結果」の一番下にあります。叩いた音にどの高さの成分がどれだけ含まれているかのグラフです。横が音の高さ（右ほど高い）、山が高いほどその音が強く出ています。</p>
+    <p>叩いた音にどの高さの成分がどれだけ含まれているかのグラフです。横が音の高さ（右ほど高い）、山が高いほどその音が強く出ています。メーターの下に小さく表示され、タップすると「≡ 結果」で大きく表示されます。</p>
     <dl>
       <dt>青い帯</dt><dd>検出範囲です。</dd>
       <dt>緑の縦線</dt><dd>今回「音程」として拾った位置です。</dd>
       <dt>黄色の点線</dt><dd>目標の位置です。</dd>
+      <dt>白い点と数字（大きい表示のみ）</dt><dd>目立つ山とその高さ（Hz）です。緑の線が違う山に立っているとき（倍音を拾ったときなど）は、正しい山の点をタップすると、その高さで記録し直せます。叩き直す必要はありません。</dd>
+      <dt>検出範囲をこの音に合わせる</dt><dd>今の結果の少し下〜少し上（約0.8〜1.25倍）に検出範囲を絞ります。ほかの音を拾いにくくなります。</dd>
     </dl>
-    <p>緑の線が明らかに違う山に立っているときは、検出範囲を調整してください。</p>
+
+    <h3 id="h-quality">音の状態（余韻・下がり・うなり）</h3>
+    <p>メーターの下と「≡ 結果」に、最後に叩いた音の状態を表示します。余韻とうなりは音が消えるまで（最大3秒）測るので、少し遅れて表示されます。</p>
+    <dl>
+      <dt>余韻</dt><dd>叩いてから音量が1/10（-20dB）に下がるまでの時間です。長いほどよく鳴っています。ミュートやヘッドの張り具合で変わります。3秒以内に下がりきらないときは「3秒以上」と表示します。</dd>
+      <dt>下がり（ピッチの下がり）</dt><dd>叩いた直後と、少し後（約0.35秒後）の音程の差です。プラスは「叩いた直後のほうが高い」という意味です。ヘッドが緩いほど、強く叩くほど大きくなります。張りの目安になり、大きすぎると「ボワン」と音程が落ちる音になります。</dd>
+      <dt>うなり</dt><dd>音量が「ワウワウ」と周期的に揺れる、または基音の山が2つに割れている状態です。ヘッドの張りにムラがあるときに出ます。「あり」のときは、ラグごとの値を見直してください。叩く場所や強さでも出ることがあるので、何度か叩いて確かめてください。</dd>
+    </dl>
   </div>
 </dialog>
 <main class="app">
@@ -223,6 +237,8 @@ canvas{width:100%;height:140px;display:block;background:#15171b;border-radius:10
     </div>
     <div class="meter"><div class="center"></div><div class="needle" id="needle"></div></div>
     <div class="hint" id="diff">「マイク開始」を押して、ドラムを1回叩いてください</div>
+    <canvas id="miniSpec" aria-label="スペクトル（タップで拡大）" title="タップで拡大"></canvas>
+    <div id="quality" class="quality"></div>
     <div class="target-row">
       <button class="chip" id="targetChip" data-open="targetSheet">目標を設定 ✎</button>
       <button class="chip" id="toneBtn">♪ 基準音</button>
@@ -275,11 +291,16 @@ canvas{width:100%;height:140px;display:block;background:#15171b;border-radius:10
 <dialog class="sheet" id="listSheet">
   <div class="sheet-head"><h2>結果</h2><button class="qbtn" data-h="h-table" aria-label="結果のヘルプ">?</button><button class="sheet-close">閉じる</button></div>
   <div class="sheet-body">
+    <div class="group" style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">最後に叩いた音 <button class="qbtn" data-h="h-spec" aria-label="スペクトルのヘルプ">?</button></div>
+    <canvas id="spec"></canvas>
+    <p class="hint">白い点（山）をタップすると、その高さで記録し直せます。</p>
+    <button class="wide" id="fitRange" style="margin-top:4px">検出範囲をこの音に合わせる</button>
+    <p class="hint" id="pickMsg"></p>
+    <div id="qualityDetail" class="interval"></div>
+    <div class="group">ラグ一覧</div>
     <table id="lugTable"></table>
     <div class="hint">ラグは「ラグの基準」と、中央は目標と比べます。▲＝締める ▼＝緩める</div>
     <div id="interval" class="interval"></div>
-    <div class="group" style="display:flex;justify-content:space-between;align-items:center">最後に叩いた音のスペクトル <button class="qbtn" data-h="h-spec" aria-label="スペクトルのヘルプ">?</button></div>
-    <canvas id="spec" width="960" height="160"></canvas>
   </div>
 </dialog>
 
@@ -352,8 +373,8 @@ document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
   if(state.head===b.dataset.head)return;
   state.head=b.dataset.head; selected=0; save(); applyDrum();
 });
-$('fmin').onchange = e => {(state.fmin||={})[state.drum]=+e.target.value; save()};
-$('fmax').onchange = e => {(state.fmax||={})[state.drum]=+e.target.value; save()};
+$('fmin').onchange = e => {(state.fmin||={})[state.drum]=+e.target.value; save(); if(lastRes)lastPeaks=findPeaks(lastRes); drawSpectrum()};
+$('fmax').onchange = e => {(state.fmax||={})[state.drum]=+e.target.value; save(); if(lastRes)lastPeaks=findPeaks(lastRes); drawSpectrum()};
 function setTarget(v){state.targets[K()]=v; $('target').value=v; save(); renderTargetChip(); renderLugs(); showResult(lastFreq)}
 function midiName(m){return NOTES[m%12]+(Math.floor(m/12)-1)}
 // メイン画面の「目標」ボタンの表示
@@ -531,16 +552,17 @@ function renderInterval(){
   el.innerHTML=html;
 }
 function recordLug(f){
-  if(!$('lugRec').checked)return;
+  if(!$('lugRec').checked){ lastHitTarget=null; return }
   const N=state.avgCount||1;
   pending.push(f);
-  if(pending.length<N){ renderLugs(); return }
+  if(pending.length<N){ lastHitTarget={type:'pending'}; renderLugs(); return }
   const v=pending.reduce((a,b)=>a+b,0)/pending.length;
   lastSpread = N>1 ? Math.max(...pending)-Math.min(...pending) : null;
   pending=[];
   commitHit(v);
 }
 function commitHit(f){
+  lastHitTarget={type:'commit', key:K(), idx:selected};
   if(selected===-1){
     pushHistory({type:'hit', key:K(), idx:-1, prev:state.centers[K()]??null});
     state.centers[K()]=f; save(); renderLugs(); return;
@@ -590,29 +612,178 @@ function analyze(seg,sr){
   const off=0.5*(a-c)/(a-2*b+c);
   return {freq:(p+(isFinite(off)?off:0))*bin, mag, bin};
 }
-function drawSpectrum(res){
-  const cv=$('spec'),g=cv.getContext('2d'),W=cv.width,H=cv.height;
-  g.clearRect(0,0,W,H);
-  const fmin=Math.max(20,+$('fmin').value*0.5), fmax=+$('fmax').value*1.5;
+// ---------- スペクトル表示とピーク ----------
+let lastRes=null, lastPeaks=[], lastHitTarget=null, lastInfo=null;
+function specRange(){const lo=+$('fmin').value, hi=+$('fmax').value; return {fmin:Math.max(20,lo*0.5), fmax:Math.min(4000,hi*2), lo, hi}}
+// 表示範囲の中の目立つ山（最大5つ）
+function findPeaks(res){
+  const {fmin,fmax}=specRange(), m=res.mag, b=res.bin;
+  const i0=Math.max(2,Math.floor(fmin/b)), i1=Math.min(m.length-2,Math.ceil(fmax/b));
+  let mx=0; for(let i=i0;i<=i1;i++) if(m[i]>mx) mx=m[i];
+  const cand=[];
+  for(let i=i0;i<=i1;i++) if(m[i]>m[i-1]&&m[i]>=m[i+1]&&m[i]>=mx*0.15) cand.push(i);
+  cand.sort((a,c)=>m[c]-m[a]);
+  const out=[];
+  for(const i of cand){
+    const a=Math.log(m[i-1]+1e-12),c=Math.log(m[i]+1e-12),d=Math.log(m[i+1]+1e-12);
+    const off=0.5*(a-d)/(a-2*c+d), f=(i+(isFinite(off)?off:0))*b;
+    if(out.some(p=>Math.abs(f-p.f)/p.f<0.04)) continue;
+    out.push({f, mag:m[i]/mx});
+    if(out.length>=5) break;
+  }
+  return out;
+}
+// 基音のすぐ近くに同じくらい強い2つ目の山がある＝山の割れ（張りのムラ）
+function detectSplit(res,f){
+  const m=res.mag,b=res.bin,p=Math.round(f/b);
+  const lo=Math.max(2,Math.round(f*0.9/b)), hi=Math.min(m.length-2,Math.round(f*1.1/b));
+  let best=null;
+  for(let i=lo;i<=hi;i++){
+    if(!(m[i]>m[i-1]&&m[i]>=m[i+1])) continue;
+    const df=Math.abs(i-p)*b;
+    if(df<4) continue;
+    if(m[i]>=m[p]*0.4 && (!best||m[i]>best.mag)) best={f:i*b, mag:m[i], df};
+  }
+  return best?{f2:best.f, df:best.df}:null;
+}
+// 指定した高さの近くで一番強い音を、短い区間から測る（ピッチの下がり用）
+function peakNear(seg,sr,f0){
+  const N=65536, re=new Float64Array(N), im=new Float64Array(N);
+  for(let i=0;i<seg.length;i++) re[i]=seg[i]*(0.5-0.5*Math.cos(2*Math.PI*i/(seg.length-1)));
+  fft(re,im);
+  const b=sr/N, lo=Math.floor(f0*0.88/b), hi=Math.ceil(f0*1.12/b);
+  let p=lo, mp=0;
+  for(let i=lo;i<=hi;i++){const v=Math.hypot(re[i],im[i]); if(v>mp){mp=v;p=i}}
+  const mg=i=>Math.log(Math.hypot(re[i],im[i])+1e-12);
+  const a=mg(p-1),c=mg(p),d=mg(p+1),off=0.5*(a-d)/(a-2*c+d);
+  return (p+(isFinite(off)?off:0))*b;
+}
+function drawSpec(cv,res,big){
+  if(!cv.clientWidth) return;
+  const dpr=window.devicePixelRatio||1, W=Math.round(cv.clientWidth*dpr), H=Math.round(cv.clientHeight*dpr);
+  cv.width=W; cv.height=H;
+  const g=cv.getContext('2d'); g.clearRect(0,0,W,H);
+  const {fmin,fmax,lo,hi}=specRange();
   const lx=f=>(Math.log(f/fmin)/Math.log(fmax/fmin))*W;
-  g.fillStyle='rgba(79,179,255,.12)';g.fillRect(lx(+$('fmin').value),0,lx(+$('fmax').value)-lx(+$('fmin').value),H);
-  let mx=0;const i0=Math.floor(fmin/res.bin),i1=Math.ceil(fmax/res.bin);
+  g.fillStyle='rgba(79,179,255,.12)'; g.fillRect(lx(lo),0,lx(hi)-lx(lo),H);
+  if(!res){
+    if(big){g.fillStyle='#9aa0a8';g.font=(12*dpr)+'px sans-serif';g.textAlign='center';g.fillText('ドラムを叩くと表示されます',W/2,H/2);g.textAlign='start'}
+    return;
+  }
+  let mx=0;const i0=Math.max(1,Math.floor(fmin/res.bin)),i1=Math.ceil(fmax/res.bin);
   for(let i=i0;i<=i1;i++)mx=Math.max(mx,res.mag[i]);
-  g.strokeStyle='#4fb3ff';g.lineWidth=1.5;g.beginPath();
-  for(let i=i0;i<=i1;i++){const x=lx(i*res.bin),y=H-(res.mag[i]/mx)*(H-14);i===i0?g.moveTo(x,y):g.lineTo(x,y)}
+  const top=big?24*dpr:4*dpr;
+  g.strokeStyle='#4fb3ff';g.lineWidth=1.5*dpr;g.beginPath();
+  for(let i=i0;i<=i1;i++){const x=lx(i*res.bin),y=H-(res.mag[i]/mx)*(H-top);i===i0?g.moveTo(x,y):g.lineTo(x,y)}
   g.stroke();
-  g.strokeStyle='#3ecf7a';g.beginPath();g.moveTo(lx(res.freq),0);g.lineTo(lx(res.freq),H);g.stroke();
-  g.fillStyle='#9aa0a8';g.font='12px sans-serif';
-  for(const f of [30,50,100,200,300,500,1000,2000])if(f>fmin&&f<fmax)g.fillText(f+'Hz',lx(f)+3,12);
   const t=target();
-  if(t&&t>fmin&&t<fmax){g.strokeStyle='#f2c14e';g.setLineDash([4,4]);g.beginPath();g.moveTo(lx(t),0);g.lineTo(lx(t),H);g.stroke();g.setLineDash([])}
+  if(t&&t>fmin&&t<fmax){g.strokeStyle='#f2c14e';g.setLineDash([4*dpr,4*dpr]);g.beginPath();g.moveTo(lx(t),0);g.lineTo(lx(t),H);g.stroke();g.setLineDash([])}
+  if(lastFreq){g.strokeStyle='#3ecf7a';g.lineWidth=2*dpr;g.beginPath();g.moveTo(lx(lastFreq),0);g.lineTo(lx(lastFreq),H);g.stroke()}
+  if(!big) return;
+  g.font=(11*dpr)+'px sans-serif'; g.fillStyle='#9aa0a8';
+  for(const f of [30,50,100,200,300,500,1000,2000])if(f>fmin&&f<fmax)g.fillText(f+'',lx(f)+3*dpr,H-4*dpr);
+  // 山のラベル（タップで選べる）
+  g.textAlign='center';
+  for(const p of lastPeaks){
+    const x=lx(p.f), y=H-p.mag*(H-top);
+    const on=lastFreq&&Math.abs(p.f-lastFreq)/lastFreq<0.02;
+    g.fillStyle=on?'#3ecf7a':'#e8eaed';
+    g.beginPath();g.arc(x,y,(on?6:5)*dpr,0,Math.PI*2);g.fill();
+    g.font=(on?'bold ':'')+(12*dpr)+'px sans-serif';
+    g.fillText(p.f.toFixed(0),Math.min(W-16*dpr,Math.max(16*dpr,x)),Math.max(13*dpr,y-10*dpr));
+  }
+  g.textAlign='start';
+}
+function drawSpectrum(res){
+  if(res){lastRes=res; lastPeaks=findPeaks(res);}
+  drawSpec($('miniSpec'),lastRes,false);
+  if($('listSheet').open) drawSpec($('spec'),lastRes,true);
+}
+function onResultSheetOpen(){ $('pickMsg').textContent=''; drawSpec($('spec'),lastRes,true); renderInfo(); }
+// 大きいスペクトルの山をタップ → その高さで記録し直す
+$('spec').addEventListener('click',e=>{
+  if(!lastRes||!lastPeaks.length) return;
+  const r=$('spec').getBoundingClientRect(), {fmin,fmax}=specRange();
+  const f=fmin*Math.pow(fmax/fmin,(e.clientX-r.left)/r.width);
+  let best=null;for(const p of lastPeaks){const d=Math.abs(Math.log(p.f/f));if(!best||d<best.d)best={p,d}}
+  if(!best||best.d>0.1) return;
+  repickFreq(best.p.f);
+});
+function repickFreq(f){
+  lastFreq=f; showResult(f);
+  const tg=lastHitTarget;
+  if(tg?.type==='pending' && pending.length) pending[pending.length-1]=f;
+  else if(tg?.type==='commit'){
+    if(tg.idx===-1) state.centers[tg.key]=f; else (state.lugs[tg.key] ||= [])[tg.idx]=f;
+    save();
+  }
+  if(lastInfo && lastRes) lastInfo.split=detectSplit(lastRes,f);
+  renderLugs(); drawSpectrum(); renderInfo();
+  $('pickMsg').textContent = tg ? `${f.toFixed(1)} Hz で記録し直しました。` : `${f.toFixed(1)} Hz を結果にしました。`;
+}
+$('fitRange').onclick=()=>{
+  if(!lastFreq){ $('pickMsg').textContent='先にドラムを叩いてください。'; return; }
+  const lo=Math.round(lastFreq*0.8), hi=Math.round(lastFreq*1.25);
+  $('fmin').value=lo; $('fmax').value=hi;
+  (state.fmin||={})[state.drum]=lo; (state.fmax||={})[state.drum]=hi; save();
+  if(lastRes) lastPeaks=findPeaks(lastRes);
+  drawSpectrum();
+  $('pickMsg').textContent=`検出範囲を ${lo}〜${hi} Hz にしました。`;
+};
+window.addEventListener('resize',()=>drawSpectrum());
+
+// ---------- 音の状態（余韻・ピッチの下がり・うなり） ----------
+function renderInfo(){
+  const i=lastInfo, el=$('quality'), d=$('qualityDetail');
+  if(!i){el.innerHTML=''; d.innerHTML='<p class="hint" style="margin:0">ドラムを叩くと、余韻・ピッチの下がり・うなりを表示します。</p>'; return}
+  const sus = i.sustain!=null ? i.sustain.toFixed(1)+'秒' : i.sustainOver ? '3秒以上' : i.measuring ? '測定中…' : '—';
+  const bend = i.bend==null ? '—' : Math.abs(i.bend)<3 ? 'ほぼなし' : (i.bend>0?'+':'')+i.bend.toFixed(0)+' cent';
+  const beatHz = i.split ? i.split.df : i.beat;
+  const beat = beatHz ? `あり 約${beatHz.toFixed(1)} Hz` : i.measuring ? '測定中…' : 'なし';
+  el.innerHTML=`<span>余韻 <b>${sus}</b></span><span>下がり <b>${bend}</b></span><span class="${beatHz?'warn':''}">うなり <b>${beat}</b></span>`;
+  d.innerHTML=`<div class="iv-title">最後に叩いた音の状態</div>
+    <div class="iv-row"><span>余韻（-20dBまで）</span><b>${sus}</b></div>
+    <div class="iv-row"><span>ピッチの下がり</span><b>${bend}</b></div>
+    <div class="iv-row"><span>うなり・山の割れ</span><b class="${beatHz?'warn':''}">${beat}</b></div>
+    ${beatHz?'<p class="hint" style="margin-bottom:0">張りにムラがある可能性があります。ラグごとの値を見直してください。</p>':''}`;
+}
+// 余韻とうなりは、叩いた後の音量の変化（エンベロープ）から計算する
+function finishEnv(reason){
+  const e=env; env=null;
+  if(!e||!e.info) return;
+  const info=e.info, pts=e.pts;
+  info.measuring=false;
+  if(pts.length<10){ if(info===lastInfo) renderInfo(); return; }
+  let pk=0,tp=0; for(const p of pts){ if(p.t>0.2)break; if(p.r>pk){pk=p.r;tp=p.t} }
+  let sus=null;
+  for(const p of pts) if(p.t>tp && p.r<pk*0.1){sus=p.t-tp;break}
+  info.sustain=sus;
+  info.sustainOver = sus==null && reason==='time';
+  // うなり：音量の減り方に周期的な揺れ（1〜8Hz）があるか
+  const end = sus!=null ? tp+sus : pts[pts.length-1].t;
+  const seg=pts.filter(p=>p.t>=tp+0.05 && p.t<=end && p.r>0);
+  if(!info.split && seg.length>=20){
+    const x=seg.map(p=>p.t), y=seg.map(p=>20*Math.log10(p.r));
+    const n=x.length, mxv=x.reduce((a,b)=>a+b)/n, myv=y.reduce((a,b)=>a+b)/n;
+    let sxy=0,sxx=0; for(let k=0;k<n;k++){sxy+=(x[k]-mxv)*(y[k]-myv); sxx+=(x[k]-mxv)**2}
+    const sl=sxy/sxx, res=y.map((v,k)=>v-(myv+sl*(x[k]-mxv)));
+    const sd=Math.sqrt(res.reduce((a,v)=>a+v*v,0)/n);
+    const dt=(x[n-1]-x[0])/(n-1);
+    let best=0, bl=0;
+    for(let L=Math.max(2,Math.round(0.125/dt)); L<=Math.min(Math.floor(n/2),Math.round(1/dt)); L++){
+      let s=0,a=0,b=0; for(let k=0;k+L<n;k++){s+=res[k]*res[k+L]; a+=res[k]*res[k]; b+=res[k+L]*res[k+L]}
+      const c=s/Math.sqrt(a*b+1e-12); if(c>best){best=c;bl=L}
+    }
+    info.beat = (best>0.5 && sd>0.7) ? 1/(bl*dt) : null;
+  }
+  if(info===lastInfo) renderInfo();
 }
 
 // ---------- Microphone / hit detection ----------
 let ac=null, analyser=null, running=false, micStream=null, micSrc=null, rafId=0;
 $('micBtn').onclick=async()=>{
   if(running){ // 停止
-    running=false; cancelAnimationFrame(rafId);
+    running=false; cancelAnimationFrame(rafId); env=null; waiting=false;
     micStream?.getTracks().forEach(t=>t.stop()); micSrc?.disconnect();
     $('micBtn').textContent='● マイク開始'; $('micBtn').className='';
     $('level').firstChild.style.width='0';
@@ -629,7 +800,8 @@ $('micBtn').onclick=async()=>{
     loop();
   }catch(e){ $('diff').textContent='マイクを使えませんでした。ブラウザの設定でマイクを許可してください。' }
 };
-let buf, floor=0.001, hitAt=0, waiting=false;
+let buf, floor=0.001, recent=0, hitAt=0, waiting=false, env=null;
+// 余韻が鳴っている間に「叩いた」と誤判定しないよう、音量が急に跳ね上がったときだけ打撃とみなす
 function loop(){
   if(!running)return;
   buf=buf||new Float32Array(analyser.fftSize);
@@ -639,24 +811,39 @@ function loop(){
   $('level').firstChild.style.width=Math.min(100,rms*400)+'%';
   const sens=+$('sens').value, thr=Math.max(floor*4, 0.002+ (100-sens)/100*0.08);
   const now=ac.currentTime;
-  if(!waiting && rms>thr && now-hitAt>0.6){waiting=true;hitAt=now}
-  if(waiting && now-hitAt>0.45){
+  if(!waiting && rms>thr && rms>recent*2 && now-hitAt>0.6){
+    if(env) finishEnv('next');
+    waiting=true; hitAt=now; env={pts:[], floor, info:null};
+  }
+  recent=recent*0.7+rms*0.3;
+  if(env){
+    const t=now-hitAt; env.pts.push({t, r:rms});
+    if(t>3) finishEnv('time');
+    else if(t>0.6 && env.info && rms<env.floor*1.5) finishEnv('quiet');
+  }
+  if(waiting && now-hitAt>0.55){
     waiting=false;
     analyser.getFloatTimeDomainData(buf);
     const sr=ac.sampleRate, elapsed=Math.round((ac.currentTime-hitAt)*sr);
-    const start=Math.max(0,buf.length-elapsed-1024+Math.round(0.03*sr));
-    const seg=buf.subarray(start,Math.min(buf.length,start+Math.round(0.4*sr)));
+    const onset=Math.max(0,buf.length-elapsed-512);
+    const seg=buf.subarray(onset+Math.round(0.03*sr), Math.min(buf.length, onset+Math.round(0.53*sr)));
     if(seg.length>2048){
-      const res=analyze(seg,sr);
-      lastFreq=res.freq;showResult(res.freq);drawSpectrum(res);recordLug(res.freq);
-    }
+      const res=analyze(seg,sr), f=res.freq;
+      const info={freq:f, split:detectSplit(res,f), bend:null, sustain:null, sustainOver:false, beat:null, measuring:true};
+      const e0=onset+Math.round(0.02*sr), e1=onset+Math.round(0.14*sr), l0=onset+Math.round(0.30*sr), l1=onset+Math.round(0.42*sr);
+      if(l1<=buf.length){ const fe=peakNear(buf.subarray(e0,e1),sr,f), fl=peakNear(buf.subarray(l0,l1),sr,f); info.bend=1200*Math.log2(fe/fl); }
+      lastInfo=info; if(env) env.info=info;
+      lastFreq=f; showResult(f); drawSpectrum(res); recordLug(f); renderInfo();
+    } else if(env) env=null;
   }
   if(!waiting) floor=floor*0.98+rms*0.02;
   rafId=requestAnimationFrame(loop);
 }
 
 // ---------- シート（設定・目標・一覧）とヘルプ ----------
-document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>$(b.dataset.open).showModal());
+function openSheet(id){ $(id).showModal(); if(id==='listSheet') onResultSheetOpen(); }
+document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openSheet(b.dataset.open));
+$('miniSpec').onclick=()=>openSheet('listSheet');
 document.querySelectorAll('.sheet-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());
 document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close()}));
 function openHelp(id){
@@ -671,6 +858,7 @@ document.querySelectorAll(".qbtn").forEach(b=>b.onclick=()=>openHelp(b.dataset.h
 if(!store.get("seenHelp",false)){store.set("seenHelp",true);openHelp("h-flow")}
 
 applyDrum();
+renderInfo(); drawSpectrum();
 
 // ---------- オフライン対応（アプリとしてインストール） ----------
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
