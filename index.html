@@ -46,7 +46,10 @@ button:disabled{opacity:.35;cursor:default}
 #lugSvg{width:100%;max-width:290px;display:block;margin:0 auto}
 #lugHint{text-align:center;font-size:14px;color:var(--text);margin-top:6px;line-height:1.5}
 .lug-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
-.lug-tools #lugRef{flex:1;text-align:center;font-size:12px;margin:0;min-height:0}
+.lug-tools #lugRef{flex:1;min-width:0;text-align:center;font-size:12px;margin:0;padding:5px 8px;line-height:1.3;
+  background:var(--ctl);color:var(--text);border:1px solid var(--line);border-radius:14px;cursor:pointer}
+.lug-tools #lugRef b{color:var(--accent);font-weight:700}
+.lug-tools #lugRef .off{display:block;font-size:11px;color:var(--sub)}
 .mini{font-size:13px;color:var(--sub);display:flex;align-items:center;gap:6px}
 .mini select{padding:6px 8px}
 .mini-btn{padding:6px 14px;font-size:13px}
@@ -174,7 +177,7 @@ canvas{width:100%;height:170px;display:block;background:#15171b;border-radius:10
       <dt>↶ 戻す（下のバー）</dt><dd>直前の記録を取り消して、そのラグ（または中央）を選び直します。叩き損ねたときやほかの音を拾ったときに使います。平均の途中なら、最後の1打だけを取り消します。「クリア」も取り消せます。続けて押すと、さらに前に戻ります（アプリを開き直すと戻れなくなります）。</dd>
       <dt>丸をクリック</dt><dd>そのラグ（または中央）を選び直せます。測り直したいときに使います。</dd>
       <dt>中央</dt><dd>全部のラグを一周すると、自動で「中央」が選ばれます。打面の中央を叩くと、ドラム全体の音程として記録されます。中央の丸の色は目標値とのずれ（目標が空なら青）で、ラグの基準とは比べません（中央の音はラグ際より低く出るのが普通のため）。</dd>
-      <dt>ラグの基準</dt><dd>ラグを何と比べるかを選びます。<br>・ラグ平均：測ったラグ同士の平均と比べ、ラグ同士がそろっているかを見ます（通常はこちら。ラグ際の音は中央より高く出るため）。<br>・目標：目標欄の値と比べます。ラグ際の音程で目標を決めているときに使います。目標が空のときはラグ平均になります。</dd>
+      <dt>ラグの基準</dt><dd>ラグを何と比べるかを選びます。<br>・ラグ平均：測ったラグ同士の平均と比べ、ラグ同士がそろっているかを見ます（通常はこちら。ラグ際の音は中央より高く出るため）。<br>・目標：目標欄の値と比べます。ラグ際の音程で目標を決めているときに使います。目標が空のときはラグ平均になります。<br>ラグの図の上の「基準: ○○ ⇄」をタップすると、その場で切り替えられます。ラグ平均のときも、目標があれば「目標比 +○c 全体を緩める」のように、ラグ全体のずれを表示します。</dd>
       <dt>ラグの丸の色</dt><dd>「ラグの基準」と比べた、各ラグのずれです。
 <br><span class="sw" style="background:var(--ok)"></span>そろっている（±8cent以内）
         <br><span class="sw" style="background:var(--hi1)"></span><span class="sw" style="background:var(--hi2)"></span>基準より高い → 緩める（濃いほど大きくずれ）
@@ -248,7 +251,7 @@ canvas{width:100%;height:170px;display:block;background:#15171b;border-radius:10
   <section class="lugs-area">
     <div class="lug-tools">
       <label class="mini">ラグ <select id="lugCount"><option>4</option><option>5</option><option selected>6</option><option>8</option><option>10</option><option>12</option></select></label>
-      <span class="hint" id="lugRef"></span>
+      <button class="ref-chip" id="lugRef" title="タップでラグの基準を切り替え"></button>
       <button class="mini-btn danger" id="clearLugs">クリア</button>
     </div>
     <svg id="lugSvg" viewBox="0 0 260 260" aria-label="ラグの図"></svg>
@@ -396,6 +399,11 @@ $('sens').value = state.sens ?? 60;
 $('sens').onchange = e => {state.sens=+e.target.value; save()};
 $('lugRefMode').value = state.lugRefMode || 'avg';
 $('lugRefMode').onchange = e => {state.lugRefMode=e.target.value; save(); renderLugs()};
+$('lugRef').onclick = () => {
+  state.lugRefMode = state.lugRefMode==='target' ? 'avg' : 'target';
+  $('lugRefMode').value = state.lugRefMode; save(); renderLugs();
+  if(state.lugRefMode==='target' && !target()) $('targetSheet').showModal();
+};
 $('avgCount').value = state.avgCount || 1;
 $('avgCount').onchange = e => {state.avgCount=+e.target.value; pending=[]; save(); renderLugs()};
 $('lugCount').onchange = e => {state.lugCount=+e.target.value; selected=0; pending=[]; save(); renderLugs()};
@@ -469,11 +477,11 @@ function lugOrder(n){
 }
 // ラグ際の音は中央より高く出るので、ラグ同士の平均と比べる（目標値は中央用）
 function useTargetForLugs(){return state.lugRefMode==='target' && !!target()}
-function lugRef(){
-  if(useTargetForLugs()) return target();
+function lugAvg(){
   const v=curLugs().slice(0,state.lugCount).filter(Boolean);
   return v.length? v.reduce((a,b)=>a+b,0)/v.length : null;
 }
+function lugRef(){ return useTargetForLugs() ? target() : lugAvg() }
 // ±8cent以内=緑、高い=赤系、低い=青系（20cent以上ずれると濃い色）
 function colorFor(c){
   if(Math.abs(c)<8)return 'var(--ok)';
@@ -510,9 +518,19 @@ function renderLugs(){
   $('lugHint').textContent = hint;
   $('undoBtn').disabled = !pending.length && !undoStack.length;
   renderInterval();
-  $('lugRef').textContent = useTargetForLugs() ? `基準: 目標 ${ref.toFixed(1)} Hz`
-    : state.lugRefMode==='target' ? `目標なし→平均${ref?` ${ref.toFixed(1)} Hz`:''}`
-    : ref ? `基準: 平均 ${ref.toFixed(1)} Hz` : '';
+  {
+    const tgt=target(), avg=lugAvg();
+    let h;
+    if(useTargetForLugs()) h=`基準: <b>目標</b> ${ref.toFixed(1)} Hz ⇄`;
+    else if(state.lugRefMode==='target') h=`基準: <b>目標</b>（未設定→平均）⇄`;
+    else h=`基準: <b>ラグ平均</b>${avg?` ${avg.toFixed(1)} Hz`:''} ⇄`;
+    // 平均モードでも、ラグ全体が目標からどれだけずれているかを出す
+    if(!useTargetForLugs() && tgt && avg){
+      const c=cents(avg,tgt);
+      h+=`<span class="off">目標比 ${(c>=0?'+':'')+c.toFixed(0)}c ${Math.abs(c)<8?'✓':c<0?'全体を締める':'全体を緩める'}</span>`;
+    }
+    $('lugRef').innerHTML=h;
+  }
   let t='<tr><th>ラグ</th><th>Hz</th><th>差(Hz)</th><th>差(cent)</th><th></th></tr>';
   for(let i=0;i<n;i++){
     const f=lugs[i]; if(!f){t+=`<tr><td>${i+1}</td><td>—</td><td></td><td></td><td></td></tr>`;continue}
